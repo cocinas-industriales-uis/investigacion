@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador — Sistema de Seguridad en Cocinas</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #f5f4f0;
+  --surface:  #ffffff;
+  --surface2: #eeede8;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.13);
+  --text:     #1a1a1a;
+  --muted:    #6b6b6b;
+  --hint:     #9a9a9a;
+
+  --teal:     #1D9E75;
+  --blue:     #2874b8;
+  --red:      #c93535;
+  --amber:    #b87020;
+  --coral:    #c05030;
+  --green:    #2a7a4a;
+
+  --red-bg:   #fdf0f0;
+  --red-bd:   #f0b0b0;
+  --amber-bg: #fdf5e8;
+  --amber-bd: #e8c878;
+  --coral-bg: #fdf2ee;
+  --coral-bd: #e8c0a8;
+
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+body {
+  background: var(--bg);
+  font-family: var(--font);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 40px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .16em;
+  color: var(--hint);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+h1 {
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text);
+}
+h1 strong { font-weight: 500; }
+
+.container {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ALERT BAR */
+.alert-bar {
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+}
+.alert-bar.show { display: flex; }
+.alert-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: blink .5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.alert-bar.danger  { background: var(--red-bg);   border-color: var(--red-bd);   color: var(--red); }
+.alert-bar.warning { background: var(--amber-bg); border-color: var(--amber-bd); color: var(--amber); }
+.alert-bar.info    { background: #eef4fc;          border-color: #b0d0f0;         color: var(--blue); }
+.alert-bar.danger  .alert-dot { background: var(--red); }
+.alert-bar.warning .alert-dot { background: var(--amber); }
+.alert-bar.info    .alert-dot { background: var(--blue); }
+
+/* SLIDERS */
+.sliders-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.slider-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.slider-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--surface2);
+  border-radius: 2px;
+  outline: none;
+  margin-bottom: 8px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--text);
+  cursor: pointer;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border2);
+}
+.slider-vals {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.slider-min, .slider-max {
+  font-size: 11px;
+  color: var(--hint);
+  font-family: var(--mono);
+}
+.slider-cur {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  font-family: var(--mono);
+}
+
+/* LCD */
+.lcd {
+  background: #0d2a0d;
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-family: var(--mono);
+}
+.lcd-header {
+  font-size: 9px;
+  letter-spacing: .14em;
+  color: #3a6a3a;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.lcd-line {
+  font-size: 14px;
+  color: #5dff5d;
+  letter-spacing: .06em;
+  height: 20px;
+  white-space: pre;
+}
+.lcd-line + .lcd-line { margin-top: 6px; }
+
+/* FANS */
+.fans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.fan-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+.fan-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.fan-icon {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fan-icon svg { width: 28px; height: 28px; }
+.fan-pct {
+  font-size: 22px;
+  font-weight: 500;
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+@keyframes spin     { to { transform: rotate(360deg); } }
+@keyframes spin-fast{ to { transform: rotate(360deg); } }
+.rotating-slow { animation: spin .9s linear infinite; }
+.rotating-fast { animation: spin-fast .25s linear infinite; }
+
+/* STATUS ROW */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.status-card {
+  background: var(--surface);
+  border: 0.5px solid var(--border2);
+  border-radius: 12px;
+  padding: 14px 12px;
+  text-align: center;
+}
+.status-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.status-led {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  margin: 0 auto 8px;
+  transition: background .25s, border-color .25s;
+}
+.status-led.on-red    { background: #e05050; border-color: #c03030; animation: blink .45s ease-in-out infinite; }
+.status-led.on-blue   { background: #4090e0; border-color: #2070c0; animation: blink .45s ease-in-out infinite; }
+.status-led.on-amber  { background: #d09030; border-color: #b07010; animation: blink .7s  ease-in-out infinite; }
+.status-led.on-amber-fast { background: #d09030; border-color: #b07010; animation: blink .35s ease-in-out infinite; }
+.status-sub {
+  font-size: 11px;
+  color: var(--hint);
+  font-family: var(--mono);
+}
+
+/* PRIORITY BADGE */
+.prio-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--mono);
+  background: #e8f5ee;
+  color: var(--green);
+  border: 1px solid #b0ddc0;
+  transition: background .2s, color .2s;
+}
+.prio-badge.p1 { background: var(--red-bg);   color: var(--red);   border-color: var(--red-bd); }
+.prio-badge.p2a{ background: var(--amber-bg); color: var(--amber); border-color: var(--amber-bd); }
+.prio-badge.p2b{ background: var(--red-bg);   color: var(--red);   border-color: var(--red-bd); }
+.prio-badge.p3 { background: var(--coral-bg); color: var(--coral); border-color: var(--coral-bd); }
+.prio-badge.p4 { background: #eef4fc;         color: var(--blue);  border-color: #b0d0f0; }
+
+/* FOOTER NOTE */
+.footer-note {
+  font-size: 11px;
+  color: var(--hint);
+  text-align: center;
+  padding: 4px 0;
+  font-family: var(--mono);
+  line-height: 1.6;
+}
+
+/* MIDDLE ROW (slider + lcd) */
+.mid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Arduino Uno · Wokwi · Simulador</div>
+  <h1>Sistema de seguridad en cocinas — <strong>simulación en tiempo real</strong></h1>
+</header>
+
+<div class="container">
+
+  <!-- ALERT BAR -->
+  <div class="alert-bar" id="alert-bar">
+    <div class="alert-dot" id="alert-dot"></div>
+    <span id="alert-msg">—</span>
+  </div>
+
+  <!-- SLIDERS -->
+  <div class="sliders-grid">
+    <div class="slider-card">
+      <div class="slider-label">Temperatura (°C)</div>
+      <input type="range" min="-10" max="110" value="15" step="1" id="sl-temp" oninput="update()">
+      <div class="slider-vals">
+        <span class="slider-min">-10°C</span>
+        <span class="slider-cur" id="lbl-temp">15°C</span>
+        <span class="slider-max">110°C</span>
+      </div>
+    </div>
+    <div class="slider-card">
+      <div class="slider-label">Gas butano (%)</div>
+      <input type="range" min="0" max="100" value="10" step="1" id="sl-gas" oninput="update()">
+      <div class="slider-vals">
+        <span class="slider-min">0%</span>
+        <span class="slider-cur" id="lbl-gas">10%</span>
+        <span class="slider-max">100%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRESIÓN + LCD -->
+  <div class="mid-row">
+    <div class="slider-card">
+      <div class="slider-label">Presión (%)</div>
+      <input type="range" min="0" max="100" value="30" step="1" id="sl-pres" oninput="update()">
+      <div class="slider-vals">
+        <span class="slider-min">0%</span>
+        <span class="slider-cur" id="lbl-pres">30%</span>
+        <span class="slider-max">100%</span>
+      </div>
+    </div>
+    <div class="lcd">
+      <div class="lcd-header">LCD 16×2</div>
+      <div class="lcd-line" id="lcd-l1">SISTEMA COCINA  </div>
+      <div class="lcd-line" id="lcd-l2">Iniciando...    </div>
+    </div>
+  </div>
+
+  <!-- VENTILADORES -->
+  <div class="fans-grid">
+    <div class="fan-card">
+      <div class="fan-label">Vent 1 — inyección</div>
+      <div class="fan-icon" id="fan1-wrap">
+        <svg viewBox="0 0 28 28" id="fan1-svg">
+          <path d="M14 14 C14 9,19 5,23 8 C26 10,23 15,18 15 C23 15,27 19,24 23 C22 26,17 23,15 18 C15 23,11 27,7 24 C4 22,8 17,12 15 C7 15,3 11,6 7 C8 4,14 9,14 14Z" fill="#cccccc"/>
+        </svg>
+      </div>
+      <div class="fan-pct" id="fan1-pct">0%</div>
+    </div>
+    <div class="fan-card">
+      <div class="fan-label">Vent 2 — extracción</div>
+      <div class="fan-icon" id="fan2-wrap">
+        <svg viewBox="0 0 28 28" id="fan2-svg">
+          <path d="M14 14 C14 9,19 5,23 8 C26 10,23 15,18 15 C23 15,27 19,24 23 C22 26,17 23,15 18 C15 23,11 27,7 24 C4 22,8 17,12 15 C7 15,3 11,6 7 C8 4,14 9,14 14Z" fill="#cccccc"/>
+        </svg>
+      </div>
+      <div class="fan-pct" id="fan2-pct">0%</div>
+    </div>
+    <div class="fan-card">
+      <div class="fan-label">Vent 3 — emergencia</div>
+      <div class="fan-icon" id="fan3-wrap">
+        <svg viewBox="0 0 28 28" id="fan3-svg">
+          <path d="M14 14 C14 9,19 5,23 8 C26 10,23 15,18 15 C23 15,27 19,24 23 C22 26,17 23,15 18 C15 23,11 27,7 24 C4 22,8 17,12 15 C7 15,3 11,6 7 C8 4,14 9,14 14Z" fill="#cccccc"/>
+        </svg>
+      </div>
+      <div class="fan-pct" id="fan3-pct">0%</div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="status-grid">
+    <div class="status-card">
+      <div class="status-label">Válvula gas</div>
+      <div class="status-led" id="led-vlv"></div>
+      <div class="status-sub" id="lbl-vlv">abierta</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">Aspersor</div>
+      <div class="status-led" id="led-asp"></div>
+      <div class="status-sub" id="lbl-asp">inactivo</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">Buzzer</div>
+      <div class="status-led" id="led-buz"></div>
+      <div class="status-sub" id="lbl-buz">silencio</div>
+    </div>
+    <div class="status-card">
+      <div class="status-label">Prioridad activa</div>
+      <div style="margin-top:4px">
+        <span class="prio-badge" id="prio-badge">Normal</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER NOTE -->
+  <div class="footer-note">
+    Gas &gt; 73% → emergencia total &nbsp;·&nbsp;
+    Temp &gt; 90°C → incendio severo (apagar todo) &nbsp;·&nbsp;
+    Temp 70–90°C → incendio moderado (solo extracción) &nbsp;·&nbsp;
+    Temp &gt; 20°C → ventilación proporcional
+  </div>
+
+</div>
+
+<script>
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function pad16(s) { return (s + '                ').substring(0, 16); }
+
+function setFan(n, pct) {
+  const wrap = document.getElementById('fan' + n + '-wrap');
+  const svg  = document.getElementById('fan' + n + '-svg');
+  const lbl  = document.getElementById('fan' + n + '-pct');
+  const path = svg.querySelector('path');
+  lbl.textContent = pct + '%';
+  wrap.className = 'fan-icon';
+  if (pct === 0) {
+    path.setAttribute('fill', '#cccccc');
+  } else if (pct < 60) {
+    path.setAttribute('fill', '#378ADD');
+    wrap.classList.add('rotating-slow');
+  } else {
+    path.setAttribute('fill', '#2060b0');
+    wrap.classList.add('rotating-fast');
+  }
+}
+
+function setLed(id, lblId, mode, labelOn, labelOff) {
+  const led = document.getElementById(id);
+  const lbl = document.getElementById(lblId);
+  led.className = 'status-led' + (mode ? ' ' + mode : '');
+  lbl.textContent = mode ? labelOn : labelOff;
+}
+
+function setLcd(l1, l2) {
+  document.getElementById('lcd-l1').textContent = pad16(l1);
+  document.getElementById('lcd-l2').textContent = pad16(l2);
+}
+
+function setAlert(type, msg) {
+  const bar = document.getElementById('alert-bar');
+  if (!type) { bar.className = 'alert-bar'; return; }
+  bar.className = 'alert-bar show ' + type;
+  document.getElementById('alert-msg').textContent = msg;
+}
+
+function setPrio(cls, label) {
+  const b = document.getElementById('prio-badge');
+  b.className = 'prio-badge' + (cls ? ' ' + cls : '');
+  b.textContent = label;
+}
+
+function update() {
+  const temp = parseInt(document.getElementById('sl-temp').value);
+  const gas  = parseInt(document.getElementById('sl-gas').value);
+  const pres = parseInt(document.getElementById('sl-pres').value);
+
+  document.getElementById('lbl-temp').textContent = temp + '°C';
+  document.getElementById('lbl-gas').textContent  = gas  + '%';
+  document.getElementById('lbl-pres').textContent = pres + '%';
+
+  const gasRaw  = Math.round(gas  / 100 * 1023);
+  const presRaw = Math.round(pres / 100 * 1023);
+
+  const GAS_ALERTA  = 500;
+  const GAS_PELIGRO = 750;
+  const PRES_ALTA   = 700;
+
+  const emGas      = gasRaw >= GAS_PELIGRO;
+  const emFuegoMod = !emGas && temp >= 70 && temp <= 90;
+  const emFuegoSev = !emGas && temp > 90;
+
+  let v1 = 0, v2 = 0, v3 = 0;
+  let vlvOn = false, aspOn = false;
+  let buzMode = null;
+
+  if (emGas) {
+    v1 = 100; v2 = 100; v3 = 100;
+    vlvOn = true; buzMode = 'on-amber-fast';
+    setPrio('p1', 'P1 — gas crítico');
+    setAlert('danger', 'FUGA DE GAS PELIGROSA — válvula cerrada, evacuación al máximo en los 3 ventiladores');
+    setLcd('!!FUGA DE GAS!!', 'G:' + gas + '% VLV:OFF');
+
+  } else if (emFuegoSev) {
+    v1 = 0; v2 = 0; v3 = 0;
+    vlvOn = true; aspOn = true; buzMode = 'on-red';
+    setPrio('p2b', 'P2b — incendio severo');
+    setAlert('danger', 'INCENDIO SEVERO (>' + temp + '°C) — ventiladores apagados, aspersores activos');
+    setLcd('!!INCENDIO SEV!!', 'T:' + temp + 'C ASP:ON');
+
+  } else if (emFuegoMod) {
+    v1 = 0; v2 = 100; v3 = 0;
+    vlvOn = true; aspOn = true; buzMode = 'on-amber';
+    setPrio('p2a', 'P2a — incendio moderado');
+    setAlert('warning', 'INCENDIO MODERADO — Vent 1 apagado, solo extracción (Vent 2) al máximo');
+    setLcd('!!INCENDIO!!', 'T:' + temp + 'C V2:100%');
+
+  } else {
+    let pwm1 = 0;
+    if (temp > 20) {
+      pwm1 = Math.round(clamp((temp - 20) / (60 - 20) * (255 - 80) + 80, 80, 255));
+    }
+    let pwm2 = pwm1;
+
+    if (presRaw >= PRES_ALTA) {
+      const ref = Math.round((presRaw - PRES_ALTA) / (1023 - PRES_ALTA) * 70 + 30);
+      pwm2 = clamp(pwm2 + ref, 0, 255);
+    }
+    if (gasRaw >= GAS_ALERTA) {
+      const boost = Math.round((gasRaw - GAS_ALERTA) / (GAS_PELIGRO - GAS_ALERTA) * 130 + 50);
+      pwm1 = clamp(pwm1 + boost, 0, 255);
+      pwm2 = clamp(pwm2 + boost, 0, 255);
+    }
+
+    v1 = Math.round(pwm1 / 255 * 100);
+    v2 = Math.round(pwm2 / 255 * 100);
+    v3 = 0;
+
+    if (gasRaw >= GAS_ALERTA) {
+      setPrio('p3', 'P3 — gas en alerta');
+      setAlert('warning', 'Nivel de gas elevado (' + gas + '%) — ventiladores acelerados');
+    } else if (presRaw >= PRES_ALTA) {
+      setPrio('p3', 'P3 — presión alta');
+      setAlert('info', 'Presión elevada (' + pres + '%) — reforzando extracción en Vent 2');
+    } else if (temp > 20) {
+      setPrio('p4', 'P4 — temperatura');
+      setAlert(null);
+    } else {
+      setPrio('', 'Normal');
+      setAlert(null);
+    }
+
+    const v1pct = Math.round(pwm1 / 255 * 100);
+    const v2pct = Math.round(pwm2 / 255 * 100);
+    setLcd('T:' + temp + 'C G:' + gas + '%', 'V1:' + v1pct + '% V2:' + v2pct + '%');
+  }
+
+  setFan(1, v1);
+  setFan(2, v2);
+  setFan(3, v3);
+
+  setLed('led-vlv', 'lbl-vlv', vlvOn ? 'on-red'  : null, 'CERRADA', 'abierta');
+  setLed('led-asp', 'lbl-asp', aspOn ? 'on-blue'  : null, 'ON',      'inactivo');
+  setLed('led-buz', 'lbl-buz', buzMode,                   'activo',  'silencio');
+}
+
+update();
+</script>
+</body>
+</html>

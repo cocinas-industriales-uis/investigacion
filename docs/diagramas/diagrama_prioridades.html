@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Seguridad — Lógica de Prioridades</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f1117;
+    --surface:  #181c27;
+    --surface2: #1f2435;
+    --border:   rgba(255,255,255,0.07);
+    --border2:  rgba(255,255,255,0.13);
+    --text:     #e8eaf0;
+    --muted:    #7a7f96;
+    --hint:     #4a4f65;
+
+    --red:      #e25454;
+    --red-dim:  rgba(226,84,84,0.15);
+    --amber:    #d4893a;
+    --amber-dim:rgba(212,137,58,0.15);
+    --coral:    #c76845;
+    --coral-dim:rgba(199,104,69,0.12);
+    --teal:     #3aad8a;
+    --blue:     #4a9fd4;
+    --gray:     #5a6080;
+
+    --font-head: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-head);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .18em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -.01em;
+  }
+  h1 span { font-weight: 500; }
+
+  .diagram {
+    display: grid;
+    grid-template-columns: 160px 1fr 160px;
+    gap: 0;
+    width: 100%;
+    max-width: 860px;
+    position: relative;
+    align-items: center;
+  }
+
+  .col-head {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: .14em;
+    color: var(--hint);
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  /* SENSORS */
+  .sensors { display: flex; flex-direction: column; gap: 12px; }
+
+  .sensor {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: 0 10px 10px 0;
+    padding: 11px 14px;
+    position: relative;
+    cursor: default;
+    transition: background .2s;
+  }
+  .sensor::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 2px 0 0 2px;
+  }
+  .sensor:hover { background: var(--surface2); }
+  .sensor.teal::before  { background: var(--teal); }
+  .sensor.blue::before  { background: var(--blue); }
+  .sensor.coral::before { background: var(--coral); }
+
+  .s-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .s-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--hint);
+  }
+
+  /* CENTER */
+  .center {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 18px;
+    position: relative;
+  }
+
+  .prio {
+    border-radius: 8px;
+    padding: 11px 16px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform .15s, border-color .2s;
+    position: relative;
+  }
+  .prio:hover { transform: translateY(-1px); }
+
+  .p-rank {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .p-cond {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 3px;
+  }
+  .p-effect {
+    font-size: 11px;
+    opacity: .75;
+  }
+
+  .prio.p1 { background: var(--red-dim);   border-color: rgba(226,84,84,0.3); }
+  .prio.p1 .p-rank   { color: var(--red); }
+  .prio.p1 .p-cond   { color: #f09090; }
+  .prio.p1 .p-effect { color: #c07070; }
+
+  .prio.p2 { background: var(--amber-dim); border-color: rgba(212,137,58,0.3); }
+  .prio.p2 .p-rank   { color: var(--amber); }
+  .prio.p2 .p-cond   { color: #e0a870; }
+  .prio.p2 .p-effect { color: #b08050; }
+
+  .prio.p3 { background: var(--coral-dim); border-color: rgba(199,104,69,0.28); }
+  .prio.p3 .p-rank   { color: var(--coral); }
+  .prio.p3 .p-cond   { color: #d99070; }
+  .prio.p3 .p-effect { color: #a07050; }
+
+  .prio.p4 { background: var(--surface); border-color: var(--border2); }
+  .prio.p4 .p-rank   { color: var(--hint); }
+  .prio.p4 .p-cond   { color: var(--muted); }
+  .prio.p4 .p-effect { color: var(--hint); }
+
+  /* OUTPUTS */
+  .outputs { display: flex; flex-direction: column; gap: 10px; }
+
+  .output {
+    background: var(--surface);
+    border: 0.5px solid var(--border2);
+    border-radius: 10px 0 0 10px;
+    padding: 10px 14px;
+    position: relative;
+    cursor: default;
+    transition: background .2s;
+  }
+  .output::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+  }
+  .output:hover { background: var(--surface2); }
+  .output.blue::after  { background: var(--blue); }
+  .output.red::after   { background: var(--red); }
+  .output.amber::after { background: var(--amber); }
+
+  .o-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+  .o-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--hint);
+  }
+
+  /* ARROWS SVG overlay */
+  #arrows {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 0.5px solid var(--border);
+    width: 100%;
+    max-width: 860px;
+  }
+  .leg {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  .leg-line {
+    width: 28px;
+    height: 1.5px;
+    border-radius: 2px;
+  }
+
+  /* TOOLTIP */
+  .tooltip {
+    position: fixed;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 220px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 99;
+    line-height: 1.5;
+  }
+  .tooltip.show { opacity: 1; }
+
+  footer {
+    margin-top: 32px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--hint);
+    letter-spacing: .08em;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Arduino Uno · Wokwi</div>
+  <h1>Sistema de seguridad en cocinas — <span>lógica de prioridades</span></h1>
+</header>
+
+<div class="diagram" id="diagram">
+
+  <!-- SENSORES -->
+  <div>
+    <div class="col-head">Sensores</div>
+    <div class="sensors">
+      <div class="sensor teal" id="s-temp">
+        <div class="s-name">Temperatura</div>
+        <div class="s-meta">NTC · pin A0</div>
+      </div>
+      <div class="sensor blue" id="s-gas">
+        <div class="s-name">Gas butano</div>
+        <div class="s-meta">Potenciómetro · A1</div>
+      </div>
+      <div class="sensor coral" id="s-pres">
+        <div class="s-name">Presión</div>
+        <div class="s-meta">Potenciómetro · A2</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LÓGICA CENTRAL -->
+  <div class="center" id="center">
+    <div class="col-head">Lógica de prioridades</div>
+    <div class="prio p1" id="p1"
+      data-tip="Activa los 3 ventiladores al 100%, cierra válvula y dispara buzzer rápido (150ms). Sobreescribe cualquier otra condición.">
+      <div class="p-rank">P1 · máxima prioridad</div>
+      <div class="p-cond">Gas ≥ 73%</div>
+      <div class="p-effect">Emergencia total · válvula cerrada · buzzer rápido</div>
+    </div>
+    <div class="prio p2" id="p2"
+      data-tip="Temperatura ≥ 70°C indica riesgo de incendio. Activa aspersores (LED azul), cierra válvula y dispara buzzer lento (250ms). Vent 3 no se activa.">
+      <div class="p-rank">P2 · alta prioridad</div>
+      <div class="p-cond">Temperatura ≥ 70 °C</div>
+      <div class="p-effect">Incendio · aspersores · válvula cerrada</div>
+    </div>
+    <div class="prio p3" id="p3"
+      data-tip="Presión alta es peligrosa para llamas y gas butano. Refuerza la extracción (Vent 2) para bajar la presión interior sin detener la operación normal.">
+      <div class="p-rank">P3 · media prioridad</div>
+      <div class="p-cond">Presión ≥ 68%</div>
+      <div class="p-effect">Refuerza vent 2 de extracción</div>
+    </div>
+    <div class="prio p4" id="p4"
+      data-tip="Control proporcional: entre 20°C y 60°C los ventiladores 1 y 2 suben de PWM 80 a 255 linealmente. Si hay alerta de gas (49–73%) se suma un boost adicional.">
+      <div class="p-rank">P4 · operación normal</div>
+      <div class="p-cond">Temperatura 20 – 60 °C</div>
+      <div class="p-effect">Control PWM proporcional en Vent 1 y Vent 2</div>
+    </div>
+  </div>
+
+  <!-- ACTUADORES -->
+  <div>
+    <div class="col-head">Actuadores</div>
+    <div class="outputs">
+      <div class="output blue" id="o-v1">
+        <div class="o-name">Vent 1</div>
+        <div class="o-meta">Inyección · pin 3</div>
+      </div>
+      <div class="output blue" id="o-v2">
+        <div class="o-name">Vent 2</div>
+        <div class="o-meta">Extracción · pin 5</div>
+      </div>
+      <div class="output red" id="o-v3">
+        <div class="o-name">Vent 3</div>
+        <div class="o-meta">Evacuación gas · pin 6</div>
+      </div>
+      <div class="output red" id="o-vlv">
+        <div class="o-name">LED válvula</div>
+        <div class="o-meta">Rojo · cierra en emergencia</div>
+      </div>
+      <div class="output blue" id="o-asp">
+        <div class="o-name">LED aspersor</div>
+        <div class="o-meta">Azul · incendio · pin 2</div>
+      </div>
+      <div class="output amber" id="o-buz">
+        <div class="o-name">Buzzer</div>
+        <div class="o-meta">Rápido=gas · lento=fuego</div>
+      </div>
+    </div>
+  </div>
+
+  <svg id="arrows"></svg>
+</div>
+
+<div class="legend">
+  <div class="leg">
+    <div class="leg-line" style="background:#e25454"></div>
+    P1 — gas crítico
+  </div>
+  <div class="leg">
+    <div class="leg-line" style="background:#d4893a;opacity:.8"></div>
+    P2 — incendio
+  </div>
+  <div class="leg">
+    <div class="leg-line" style="background:#c76845;opacity:.6;border-top:1.5px dashed #c76845;height:0;border-radius:0"></div>
+    P3 — presión
+  </div>
+  <div class="leg">
+    <div class="leg-line" style="background:#5a6080;opacity:.5;border-top:1.5px dashed #5a6080;height:0;border-radius:0"></div>
+    P4 — normal
+  </div>
+</div>
+
+<footer>pasa el cursor por cada prioridad para ver más detalles</footer>
+
+<div class="tooltip" id="tip"></div>
+
+<script>
+const tip = document.getElementById('tip');
+
+document.querySelectorAll('[data-tip]').forEach(el => {
+  el.addEventListener('mouseenter', e => {
+    tip.textContent = el.dataset.tip;
+    tip.classList.add('show');
+  });
+  el.addEventListener('mousemove', e => {
+    let x = e.clientX + 14, y = e.clientY + 14;
+    if (x + 240 > window.innerWidth) x = e.clientX - 230;
+    if (y + 100 > window.innerHeight) y = e.clientY - 90;
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+  });
+  el.addEventListener('mouseleave', () => tip.classList.remove('show'));
+});
+
+function getCenter(id) {
+  const el = document.getElementById(id);
+  const wr = document.getElementById('diagram').getBoundingClientRect();
+  const r  = el.getBoundingClientRect();
+  return {
+    x:  r.left - wr.left + r.width / 2,
+    y:  r.top  - wr.top  + r.height / 2,
+    rx: r.right  - wr.left,
+    lx: r.left   - wr.left,
+    ty: r.top    - wr.top,
+    by: r.bottom - wr.top,
+  };
+}
+
+let arrowCount = 0;
+function arrow(svg, x1, y1, x2, y2, color, dash, opa) {
+  const id = 'mk' + (arrowCount++);
+  const ns = 'http://www.w3.org/2000/svg';
+
+  let defs = svg.querySelector('defs');
+  if (!defs) { defs = document.createElementNS(ns,'defs'); svg.prepend(defs); }
+
+  const mk = document.createElementNS(ns,'marker');
+  mk.setAttribute('id', id);
+  mk.setAttribute('viewBox','0 0 8 8');
+  mk.setAttribute('refX','6'); mk.setAttribute('refY','4');
+  mk.setAttribute('markerWidth','5'); mk.setAttribute('markerHeight','5');
+  mk.setAttribute('orient','auto-start-reverse');
+  const mp = document.createElementNS(ns,'path');
+  mp.setAttribute('d','M1 1.5L7 4L1 6.5');
+  mp.setAttribute('fill','none');
+  mp.setAttribute('stroke', color);
+  mp.setAttribute('stroke-width','1.5');
+  mp.setAttribute('stroke-linecap','round');
+  mp.setAttribute('stroke-linejoin','round');
+  mk.appendChild(mp); defs.appendChild(mk);
+
+  const path = document.createElementNS(ns,'path');
+  const cx1 = x1 + (x2 - x1) * 0.45;
+  const cx2 = x2 - (x2 - x1) * 0.45;
+  path.setAttribute('d', `M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`);
+  path.setAttribute('fill','none');
+  path.setAttribute('stroke', color);
+  path.setAttribute('stroke-width','1.5');
+  path.setAttribute('stroke-opacity', opa ?? '0.7');
+  if (dash) path.setAttribute('stroke-dasharray', dash);
+  path.setAttribute('marker-end',`url(#${id})`);
+  svg.appendChild(path);
+}
+
+function drawArrows() {
+  const svg = document.getElementById('arrows');
+  svg.innerHTML = '';
+  const wr = document.getElementById('diagram').getBoundingClientRect();
+  svg.setAttribute('viewBox', `0 0 ${wr.width} ${wr.height}`);
+
+  const s   = { temp: getCenter('s-temp'), gas: getCenter('s-gas'), pres: getCenter('s-pres') };
+  const p   = { p1: getCenter('p1'), p2: getCenter('p2'), p3: getCenter('p3'), p4: getCenter('p4') };
+  const o   = { v1: getCenter('o-v1'), v2: getCenter('o-v2'), v3: getCenter('o-v3'),
+                vlv: getCenter('o-vlv'), asp: getCenter('o-asp'), buz: getCenter('o-buz') };
+
+  const RED   = '#e25454', AMB = '#d4893a', COR = '#c76845', TEA = '#3aad8a', BLU = '#4a9fd4', GRY = '#5a6080';
+
+  arrow(svg, s.gas.rx,  s.gas.y,  p.p1.lx, p.p1.y,  RED, null, '0.85');
+  arrow(svg, s.temp.rx, s.temp.y, p.p2.lx, p.p2.y,  AMB, '5 3', '0.7');
+  arrow(svg, s.pres.rx, s.pres.y, p.p3.lx, p.p3.y,  COR, null, '0.7');
+  arrow(svg, s.temp.rx, s.temp.y, p.p4.lx, p.p4.y,  TEA, null, '0.7');
+  arrow(svg, s.gas.rx,  s.gas.y,  p.p4.lx, p.p4.y,  BLU, '3 4', '0.45');
+
+  arrow(svg, p.p1.rx, p.p1.y, o.v1.lx,  o.v1.y,  RED, null, '0.85');
+  arrow(svg, p.p1.rx, p.p1.y, o.v2.lx,  o.v2.y,  RED, null, '0.85');
+  arrow(svg, p.p1.rx, p.p1.y, o.v3.lx,  o.v3.y,  RED, null, '0.85');
+  arrow(svg, p.p1.rx, p.p1.y, o.vlv.lx, o.vlv.y, RED, null, '0.85');
+  arrow(svg, p.p1.rx, p.p1.y, o.buz.lx, o.buz.y, RED, null, '0.85');
+
+  arrow(svg, p.p2.rx, p.p2.y, o.v1.lx,  o.v1.y,  AMB, '5 3', '0.65');
+  arrow(svg, p.p2.rx, p.p2.y, o.v2.lx,  o.v2.y,  AMB, '5 3', '0.65');
+  arrow(svg, p.p2.rx, p.p2.y, o.vlv.lx, o.vlv.y, AMB, '5 3', '0.65');
+  arrow(svg, p.p2.rx, p.p2.y, o.asp.lx, o.asp.y, AMB, '5 3', '0.65');
+  arrow(svg, p.p2.rx, p.p2.y, o.buz.lx, o.buz.y, AMB, '5 3', '0.65');
+
+  arrow(svg, p.p3.rx, p.p3.y, o.v2.lx, o.v2.y,  COR, '3 4', '0.6');
+
+  arrow(svg, p.p4.rx, p.p4.y, o.v1.lx, o.v1.y,  GRY, '2 5', '0.45');
+  arrow(svg, p.p4.rx, p.p4.y, o.v2.lx, o.v2.y,  GRY, '2 5', '0.45');
+}
+
+window.addEventListener('load',   () => setTimeout(drawArrows, 120));
+window.addEventListener('resize', drawArrows);
+</script>
+</body>
+</html>
