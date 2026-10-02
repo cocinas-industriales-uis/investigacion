@@ -3,499 +3,598 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistema de Seguridad — Lógica de Prioridades</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<title>Sistema IoT Cocinas — Lógica de Prioridades v2</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fafafa;--s1:#ffffff;--s2:#f4f4f5;--s3:#e4e4e7;
+  --bd:#e4e4e7;--bd2:#d4d4d8;--bd3:#a1a1aa;
+  --tx:#18181b;--mt:#52525b;--ht:#a1a1aa;
+  --acc:#18181b;--acc2:#3f3f46;
+  --red:#dc2626;--red2:rgba(220,38,38,.08);--red3:rgba(220,38,38,.04);
+  --ora:#ea580c;--ora2:rgba(234,88,12,.08);
+  --yel:#ca8a04;--yel2:rgba(202,138,4,.08);
+  --blu:#2563eb;--blu2:rgba(37,99,235,.08);
+  --grn:#16a34a;--grn2:rgba(22,163,74,.08);
+  --font:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:6px;--r2:10px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+}
+body{background:var(--bg);color:var(--tx);font-family:var(--font);min-height:100vh;padding:40px 20px 80px}
 
-  :root {
-    --bg:       #0f1117;
-    --surface:  #181c27;
-    --surface2: #1f2435;
-    --border:   rgba(255,255,255,0.07);
-    --border2:  rgba(255,255,255,0.13);
-    --text:     #e8eaf0;
-    --muted:    #7a7f96;
-    --hint:     #4a4f65;
+header{text-align:center;margin-bottom:40px;max-width:700px;margin-left:auto;margin-right:auto}
+.ey{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--ht);text-transform:uppercase;margin-bottom:10px}
+h1{font-size:18px;font-weight:400;color:var(--tx);letter-spacing:-.02em;margin-bottom:6px}
+h1 b{font-weight:500}
+.sub{font-size:12px;color:var(--mt);line-height:1.6}
 
-    --red:      #e25454;
-    --red-dim:  rgba(226,84,84,0.15);
-    --amber:    #d4893a;
-    --amber-dim:rgba(212,137,58,0.15);
-    --coral:    #c76845;
-    --coral-dim:rgba(199,104,69,0.12);
-    --teal:     #3aad8a;
-    --blue:     #4a9fd4;
-    --gray:     #5a6080;
+/* TABS */
+.tabs{display:flex;gap:1px;justify-content:center;margin-bottom:32px;background:var(--bd);border-radius:var(--r2);padding:1px;width:fit-content;margin-left:auto;margin-right:auto;box-shadow:var(--sh)}
+.tab{padding:8px 22px;border-radius:8px;font-size:12px;font-weight:400;cursor:pointer;color:var(--mt);border:none;background:transparent;font-family:var(--font);transition:all .15s;letter-spacing:.01em}
+.tab.active{background:var(--s1);color:var(--tx);font-weight:500;box-shadow:var(--sh)}
+.panel{display:none}.panel.active{display:block}
 
-    --font-head: 'DM Sans', sans-serif;
-    --font-mono: 'DM Mono', monospace;
-  }
+/* ══ PANEL 1: DIAGRAMA ══ */
+.diag-outer{max-width:980px;margin:0 auto}
+.diag-grid{display:grid;grid-template-columns:160px 1fr 172px;gap:0;position:relative;align-items:start;min-height:520px}
+.col-h{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ht);text-transform:uppercase;text-align:center;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-head);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-  }
+/* sensores */
+.sens{display:flex;flex-direction:column;gap:8px}
+.sen{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;cursor:default;transition:border-color .15s,box-shadow .15s;position:relative}
+.sen:hover{border-color:var(--bd3);box-shadow:var(--sh)}
+.sen-dot{width:6px;height:6px;border-radius:50%;background:var(--bd3);display:inline-block;margin-right:6px;vertical-align:middle;flex-shrink:0}
+.sn{font-size:12px;font-weight:500;color:var(--tx);margin-bottom:2px;display:flex;align-items:center}
+.sm{font-family:var(--mono);font-size:9px;color:var(--ht);padding-left:12px}
 
-  header {
-    text-align: center;
-    margin-bottom: 48px;
-  }
-  .eyebrow {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: .18em;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  h1 {
-    font-size: 22px;
-    font-weight: 300;
-    color: var(--text);
-    letter-spacing: -.01em;
-  }
-  h1 span { font-weight: 500; }
+/* prioridades */
+.prios-col{display:flex;flex-direction:column;gap:5px;padding:0 16px}
+.pr{border-radius:var(--r);padding:10px 14px;border:1px solid var(--bd);cursor:pointer;transition:all .15s;background:var(--s1);position:relative}
+.pr:hover{border-color:var(--bd3);box-shadow:var(--sh)}
+.pr.selected{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.pr.dim{opacity:.28}
+.pk{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--ht);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.pk-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.pc{font-size:12px;font-weight:500;color:var(--tx);margin-bottom:2px}
+.pe{font-size:10px;color:var(--mt);line-height:1.45}
 
-  .diagram {
-    display: grid;
-    grid-template-columns: 160px 1fr 160px;
-    gap: 0;
-    width: 100%;
-    max-width: 860px;
-    position: relative;
-    align-items: center;
-  }
+/* actuadores */
+.acts-col{display:flex;flex-direction:column;gap:8px}
+.act{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:9px 12px;transition:all .2s;position:relative}
+.an{font-size:11px;font-weight:500;color:var(--tx);margin-bottom:1px;display:flex;justify-content:space-between;align-items:center}
+.am{font-family:var(--mono);font-size:9px;color:var(--ht)}
+.abadge{font-family:var(--mono);font-size:8px;font-weight:500;padding:1px 6px;border-radius:4px;background:var(--s2);color:var(--ht);border:1px solid var(--bd);transition:all .2s}
+.act.st-on{border-color:var(--acc);background:var(--bg)}
+.act.st-on .abadge{background:var(--tx);color:var(--bg);border-color:var(--tx)}
+.act.st-pwm{border-color:var(--bd2);background:var(--bg)}
+.act.st-pwm .abadge{background:var(--s2);color:var(--acc);border-color:var(--bd2)}
 
-  .col-head {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: .14em;
-    color: var(--hint);
-    text-transform: uppercase;
-    text-align: center;
-    margin-bottom: 14px;
-  }
+/* SVG overlay */
+#arrows-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 
-  /* SENSORS */
-  .sensors { display: flex; flex-direction: column; gap: 12px; }
+/* detail */
+.detail{max-width:980px;margin:16px auto 0;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:20px 24px;display:none;box-shadow:var(--sh)}
+.detail.show{display:block}
+.det-top{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--bd)}
+.det-badge{font-family:var(--mono);font-size:9px;font-weight:500;padding:3px 10px;border-radius:4px;border:1px solid var(--bd2);color:var(--mt);background:var(--s2)}
+.det-title{font-size:14px;font-weight:500;color:var(--tx)}
+.det-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.det-col h4{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--ht);margin-bottom:8px}
+.det-col ul{list-style:none;display:flex;flex-direction:column;gap:4px}
+.det-col li{font-size:11px;color:var(--mt);line-height:1.5;padding-left:12px;position:relative}
+.det-col li::before{content:'—';position:absolute;left:0;color:var(--ht)}
+.det-col li b{color:var(--tx);font-weight:500}
 
-  .sensor {
-    background: var(--surface);
-    border: 0.5px solid var(--border2);
-    border-radius: 0 10px 10px 0;
-    padding: 11px 14px;
-    position: relative;
-    cursor: default;
-    transition: background .2s;
-  }
-  .sensor::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 3px;
-    border-radius: 2px 0 0 2px;
-  }
-  .sensor:hover { background: var(--surface2); }
-  .sensor.teal::before  { background: var(--teal); }
-  .sensor.blue::before  { background: var(--blue); }
-  .sensor.coral::before { background: var(--coral); }
+/* legend */
+.leg{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--bd);max-width:980px;margin-left:auto;margin-right:auto}
+.li{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--ht);font-family:var(--mono)}
+.ll{width:20px;height:1px}
 
-  .s-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 2px;
-  }
-  .s-meta {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--hint);
-  }
+/* ══ PANEL 2: MATRIZ ══ */
+.mat-wrap{max-width:980px;margin:0 auto}
+.mat-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ht);text-transform:uppercase;margin-bottom:16px;text-align:center}
+.mat-table{width:100%;border-collapse:collapse;font-size:11px}
+.mat-table th{font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--ht);text-transform:uppercase;padding:8px 10px;border-bottom:2px solid var(--bd2);text-align:left;background:var(--s1);white-space:nowrap}
+.mat-table td{padding:8px 10px;border-bottom:1px solid var(--bd);color:var(--mt);vertical-align:top;font-size:10px}
+.mat-table tr:hover td{background:var(--s2)}
+.mat-table .cx{font-family:var(--mono);font-size:10px;color:var(--tx)}
+.v-on{color:var(--tx);font-weight:500}.v-off{color:var(--ht)}.v-pwm{color:var(--mt);font-style:italic}
+.p-lbl{font-family:var(--mono);font-size:8px;font-weight:500;padding:2px 7px;border-radius:4px;border:1px solid var(--bd2);white-space:nowrap;background:var(--s2);color:var(--mt)}
+.p-lbl.crit{border-color:var(--red);color:var(--red);background:var(--red2)}
+.p-lbl.emg{border-color:var(--ora);color:var(--ora);background:var(--ora2)}
+.p-lbl.warn{border-color:var(--yel);color:var(--yel);background:var(--yel2)}
+.p-lbl.info{border-color:var(--blu);color:var(--blu);background:var(--blu2)}
+.p-lbl.ok{border-color:var(--grn);color:var(--grn);background:var(--grn2)}
+.p-lbl.mon{border-color:var(--bd2);color:var(--mt);background:var(--s2)}
+.note-box{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:20px 24px;margin-top:24px;box-shadow:var(--sh)}
+.note-box h3{font-size:12px;font-weight:500;color:var(--tx);margin-bottom:12px;font-family:var(--mono);letter-spacing:.06em}
+.note-box p{font-size:11px;color:var(--mt);line-height:1.7;margin-bottom:8px}
+.note-box code{font-family:var(--mono);font-size:10px;color:var(--acc);background:var(--s2);padding:1px 5px;border-radius:3px;border:1px solid var(--bd)}
 
-  /* CENTER */
-  .center {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 0 18px;
-    position: relative;
-  }
+/* ══ PANEL 3: UML ══ */
+.uml-wrap{max-width:980px;margin:0 auto}
+.uml-box{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:24px;overflow-x:auto;box-shadow:var(--sh)}
+.uml-box svg{min-width:800px;display:block;margin:0 auto}
+.uml-note{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:16px 20px;margin-top:16px;font-size:11px;color:var(--mt);line-height:1.7;box-shadow:var(--sh)}
+.uml-note b{color:var(--tx);font-weight:500}
+.uml-note code{font-family:var(--mono);font-size:10px;color:var(--acc);background:var(--s2);padding:1px 4px;border-radius:3px;border:1px solid var(--bd)}
 
-  .prio {
-    border-radius: 8px;
-    padding: 11px 16px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: transform .15s, border-color .2s;
-    position: relative;
-  }
-  .prio:hover { transform: translateY(-1px); }
-
-  .p-rank {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .p-cond {
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 3px;
-  }
-  .p-effect {
-    font-size: 11px;
-    opacity: .75;
-  }
-
-  .prio.p1 { background: var(--red-dim);   border-color: rgba(226,84,84,0.3); }
-  .prio.p1 .p-rank   { color: var(--red); }
-  .prio.p1 .p-cond   { color: #f09090; }
-  .prio.p1 .p-effect { color: #c07070; }
-
-  .prio.p2 { background: var(--amber-dim); border-color: rgba(212,137,58,0.3); }
-  .prio.p2 .p-rank   { color: var(--amber); }
-  .prio.p2 .p-cond   { color: #e0a870; }
-  .prio.p2 .p-effect { color: #b08050; }
-
-  .prio.p3 { background: var(--coral-dim); border-color: rgba(199,104,69,0.28); }
-  .prio.p3 .p-rank   { color: var(--coral); }
-  .prio.p3 .p-cond   { color: #d99070; }
-  .prio.p3 .p-effect { color: #a07050; }
-
-  .prio.p4 { background: var(--surface); border-color: var(--border2); }
-  .prio.p4 .p-rank   { color: var(--hint); }
-  .prio.p4 .p-cond   { color: var(--muted); }
-  .prio.p4 .p-effect { color: var(--hint); }
-
-  /* OUTPUTS */
-  .outputs { display: flex; flex-direction: column; gap: 10px; }
-
-  .output {
-    background: var(--surface);
-    border: 0.5px solid var(--border2);
-    border-radius: 10px 0 0 10px;
-    padding: 10px 14px;
-    position: relative;
-    cursor: default;
-    transition: background .2s;
-  }
-  .output::after {
-    content: '';
-    position: absolute;
-    right: 0; top: 0; bottom: 0;
-    width: 3px;
-    border-radius: 0 2px 2px 0;
-  }
-  .output:hover { background: var(--surface2); }
-  .output.blue::after  { background: var(--blue); }
-  .output.red::after   { background: var(--red); }
-  .output.amber::after { background: var(--amber); }
-
-  .o-name {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 2px;
-  }
-  .o-meta {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--hint);
-  }
-
-  /* ARROWS SVG overlay */
-  #arrows {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    overflow: visible;
-  }
-
-  /* LEGEND */
-  .legend {
-    display: flex;
-    gap: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 0.5px solid var(--border);
-    width: 100%;
-    max-width: 860px;
-  }
-  .leg {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 11px;
-    color: var(--muted);
-    font-family: var(--font-mono);
-  }
-  .leg-line {
-    width: 28px;
-    height: 1.5px;
-    border-radius: 2px;
-  }
-
-  /* TOOLTIP */
-  .tooltip {
-    position: fixed;
-    background: var(--surface2);
-    border: 0.5px solid var(--border2);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12px;
-    color: var(--muted);
-    max-width: 220px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity .15s;
-    z-index: 99;
-    line-height: 1.5;
-  }
-  .tooltip.show { opacity: 1; }
-
-  footer {
-    margin-top: 32px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--hint);
-    letter-spacing: .08em;
-    text-align: center;
-  }
+/* tooltip */
+.tip{position:fixed;background:var(--s1);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 14px;font-size:11px;color:var(--mt);max-width:260px;pointer-events:none;opacity:0;transition:opacity .12s;z-index:99;line-height:1.55;box-shadow:var(--sh)}
+.tip.show{opacity:1}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="eyebrow">Arduino Uno · Wokwi</div>
-  <h1>Sistema de seguridad en cocinas — <span>lógica de prioridades</span></h1>
+  <div class="ey">ESP32 · MQ-2 · KY-026 · NTC · BMP280 · UIS 2026</div>
+  <h1>Sistema IoT Cocinas Industriales — <b>Lógica de Prioridades v2</b></h1>
+  <p class="sub">9 niveles de prioridad · análisis de combinaciones de variables · haz clic en cada prioridad para ver el detalle</p>
 </header>
 
-<div class="diagram" id="diagram">
-
-  <!-- SENSORES -->
-  <div>
-    <div class="col-head">Sensores</div>
-    <div class="sensors">
-      <div class="sensor teal" id="s-temp">
-        <div class="s-name">Temperatura</div>
-        <div class="s-meta">NTC · pin A0</div>
-      </div>
-      <div class="sensor blue" id="s-gas">
-        <div class="s-name">Gas butano</div>
-        <div class="s-meta">Potenciómetro · A1</div>
-      </div>
-      <div class="sensor coral" id="s-pres">
-        <div class="s-name">Presión</div>
-        <div class="s-meta">Potenciómetro · A2</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- LÓGICA CENTRAL -->
-  <div class="center" id="center">
-    <div class="col-head">Lógica de prioridades</div>
-    <div class="prio p1" id="p1"
-      data-tip="Activa los 3 ventiladores al 100%, cierra válvula y dispara buzzer rápido (150ms). Sobreescribe cualquier otra condición.">
-      <div class="p-rank">P1 · máxima prioridad</div>
-      <div class="p-cond">Gas ≥ 73%</div>
-      <div class="p-effect">Emergencia total · válvula cerrada · buzzer rápido</div>
-    </div>
-    <div class="prio p2" id="p2"
-      data-tip="Temperatura ≥ 70°C indica riesgo de incendio. Activa aspersores (LED azul), cierra válvula y dispara buzzer lento (250ms). Vent 3 no se activa.">
-      <div class="p-rank">P2 · alta prioridad</div>
-      <div class="p-cond">Temperatura ≥ 70 °C</div>
-      <div class="p-effect">Incendio · aspersores · válvula cerrada</div>
-    </div>
-    <div class="prio p3" id="p3"
-      data-tip="Presión alta es peligrosa para llamas y gas butano. Refuerza la extracción (Vent 2) para bajar la presión interior sin detener la operación normal.">
-      <div class="p-rank">P3 · media prioridad</div>
-      <div class="p-cond">Presión ≥ 68%</div>
-      <div class="p-effect">Refuerza vent 2 de extracción</div>
-    </div>
-    <div class="prio p4" id="p4"
-      data-tip="Control proporcional: entre 20°C y 60°C los ventiladores 1 y 2 suben de PWM 80 a 255 linealmente. Si hay alerta de gas (49–73%) se suma un boost adicional.">
-      <div class="p-rank">P4 · operación normal</div>
-      <div class="p-cond">Temperatura 20 – 60 °C</div>
-      <div class="p-effect">Control PWM proporcional en Vent 1 y Vent 2</div>
-    </div>
-  </div>
-
-  <!-- ACTUADORES -->
-  <div>
-    <div class="col-head">Actuadores</div>
-    <div class="outputs">
-      <div class="output blue" id="o-v1">
-        <div class="o-name">Vent 1</div>
-        <div class="o-meta">Inyección · pin 3</div>
-      </div>
-      <div class="output blue" id="o-v2">
-        <div class="o-name">Vent 2</div>
-        <div class="o-meta">Extracción · pin 5</div>
-      </div>
-      <div class="output red" id="o-v3">
-        <div class="o-name">Vent 3</div>
-        <div class="o-meta">Evacuación gas · pin 6</div>
-      </div>
-      <div class="output red" id="o-vlv">
-        <div class="o-name">LED válvula</div>
-        <div class="o-meta">Rojo · cierra en emergencia</div>
-      </div>
-      <div class="output blue" id="o-asp">
-        <div class="o-name">LED aspersor</div>
-        <div class="o-meta">Azul · incendio · pin 2</div>
-      </div>
-      <div class="output amber" id="o-buz">
-        <div class="o-name">Buzzer</div>
-        <div class="o-meta">Rápido=gas · lento=fuego</div>
-      </div>
-    </div>
-  </div>
-
-  <svg id="arrows"></svg>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('diagrama')">Diagrama de flujo</button>
+  <button class="tab" onclick="switchTab('matriz')">Matriz de decisión</button>
+  <button class="tab" onclick="switchTab('estados')">Máquina de estados</button>
 </div>
 
-<div class="legend">
-  <div class="leg">
-    <div class="leg-line" style="background:#e25454"></div>
-    P1 — gas crítico
+<!-- ══════════ PANEL 1 ══════════ -->
+<div class="panel active" id="panel-diagrama">
+<div class="diag-outer">
+<div class="diag-grid" id="diag">
+
+  <div>
+    <div class="col-h">Sensores</div>
+    <div class="sens">
+      <div class="sen" id="s-llama"><div class="sn"><span class="sen-dot" style="background:#dc2626"></span>Llama</div><div class="sm">KY-026 · D8</div></div>
+      <div class="sen" id="s-gas"><div class="sn"><span class="sen-dot" style="background:#ea580c"></span>Gas GLP</div><div class="sm">MQ-2 · A0</div></div>
+      <div class="sen" id="s-temp"><div class="sn"><span class="sen-dot" style="background:#2563eb"></span>Temperatura</div><div class="sm">NTC · A1</div></div>
+      <div class="sen" id="s-pres"><div class="sn"><span class="sen-dot" style="background:#16a34a"></span>Presión</div><div class="sm">BMP280 · I2C</div></div>
+      <div class="sen" id="s-dt"><div class="sn"><span class="sen-dot" style="background:#7c3aed"></span>ΔTemp/s</div><div class="sm">calculado</div></div>
+    </div>
   </div>
-  <div class="leg">
-    <div class="leg-line" style="background:#d4893a;opacity:.8"></div>
-    P2 — incendio
+
+  <div class="prios-col" id="prios">
+    <div class="col-h">Lógica de prioridades</div>
+    <div class="pr" id="p0" onclick="selectPrio(0)" data-tip="La combinación más peligrosa. Gas acumulado + fuente de ignición = explosión inminente. Nada se mueve para evitar chispas eléctricas.">
+      <div class="pk"><span class="pk-dot" style="background:#dc2626"></span>P0 · crítica absoluta</div>
+      <div class="pc">Gas ALTO + Llama simultáneos</div>
+      <div class="pe">Explosión inminente · todo apagado · evacuación inmediata</div>
+    </div>
+    <div class="pr" id="p1" onclick="selectPrio(1)" data-tip="Fuga de gas sin ignición. Hay que diluir la concentración por debajo del LEL antes de que aparezca una chispa. Ventilación máxima.">
+      <div class="pk"><span class="pk-dot" style="background:#dc2626"></span>P1 · emergencia gas</div>
+      <div class="pc">Gas &gt; 20% LEL · sin llama</div>
+      <div class="pe">Fuga crítica · ventilación total · válvula cerrada</div>
+    </div>
+    <div class="pr" id="p2" onclick="selectPrio(2)" data-tip="Incendio severo. A más de 90°C el flujo de aire propaga las llamas lateralmente. Se corta toda ventilación y se activa supresión.">
+      <div class="pk"><span class="pk-dot" style="background:#ea580c"></span>P2 · incendio severo</div>
+      <div class="pc">Llama + Temp &gt; 90°C</div>
+      <div class="pe">Ventiladores apagados · aspersores · válvula cerrada</div>
+    </div>
+    <div class="pr" id="p3" onclick="selectPrio(3)" data-tip="Incendio en desarrollo. Solo extracción: sacamos humo sin meter oxígeno nuevo. La inyección apagada priva al fuego de combustible adicional.">
+      <div class="pk"><span class="pk-dot" style="background:#ea580c"></span>P3 · incendio moderado</div>
+      <div class="pc">Llama + Temp 60–90°C · ΔT/s alto</div>
+      <div class="pe">Solo extracción · aspersores · sin inyección de aire</div>
+    </div>
+    <div class="pr" id="p4" onclick="selectPrio(4)" data-tip="Zona de alerta temprana 10–20% LEL. Tiempo de actuar antes de emergencia. Ventilación acelerada y alerta al operario.">
+      <div class="pk"><span class="pk-dot" style="background:#ca8a04"></span>P4 · prealerta gas</div>
+      <div class="pc">Gas 10–20% LEL · sin llama</div>
+      <div class="pe">Ventilación acelerada · alerta app · monitoreo intensivo</div>
+    </div>
+    <div class="pr" id="p5" onclick="selectPrio(5)" data-tip="Presión alta con gas en alerta. La presión concentra el gas. Extracción máxima reduce simultáneamente presión y concentración.">
+      <div class="pk"><span class="pk-dot" style="background:#2563eb"></span>P5 · presión + gas</div>
+      <div class="pc">Presión alta + Gas en alerta</div>
+      <div class="pe">Extracción máxima · reducir concentración · alerta</div>
+    </div>
+    <div class="pr" id="p6" onclick="selectPrio(6)" data-tip="Presión alta sin otros factores. Diferencial de flujo: más extracción que inyección crea presión negativa controlada.">
+      <div class="pk"><span class="pk-dot" style="background:#2563eb"></span>P6 · presión alta</div>
+      <div class="pc">Presión &gt; umbral · gas normal · sin llama</div>
+      <div class="pe">Refuerzo extracción · diferencial controlado · silencioso</div>
+    </div>
+    <div class="pr" id="p7" onclick="selectPrio(7)" data-tip="Temperatura alta sin otros factores. Control proporcional suave. El ΔT/s también cuenta: subida rápida activa ventilación antes del umbral.">
+      <div class="pk"><span class="pk-dot" style="background:#16a34a"></span>P7 · temperatura alta</div>
+      <div class="pc">Temp 30–60°C · sin llama · sin gas</div>
+      <div class="pe">Ventilación proporcional a temperatura y ΔT/s</div>
+    </div>
+    <div class="pr" id="p8" onclick="selectPrio(8)" data-tip="Llama detectada sin temperatura elevada ni gas. Probable fogón encendido. Esperar 10 segundos de confirmación antes de actuar.">
+      <div class="pk"><span class="pk-dot" style="background:#a1a1aa"></span>P8 · monitoreo llama</div>
+      <div class="pc">Llama sola · Temp estable · Gas normal</div>
+      <div class="pe">Confirmar 10s · registro en log · sin alarma inmediata</div>
+    </div>
   </div>
-  <div class="leg">
-    <div class="leg-line" style="background:#c76845;opacity:.6;border-top:1.5px dashed #c76845;height:0;border-radius:0"></div>
-    P3 — presión
+
+  <div>
+    <div class="col-h">Actuadores</div>
+    <div class="acts-col">
+      <div class="act" id="a-v1"><div class="an">Vent 1 <span class="abadge" id="b-v1">—</span></div><div class="am">Inyección · pin 3</div></div>
+      <div class="act" id="a-v2"><div class="an">Vent 2 <span class="abadge" id="b-v2">—</span></div><div class="am">Extracción · pin 5</div></div>
+      <div class="act" id="a-v3"><div class="an">Vent 3 <span class="abadge" id="b-v3">—</span></div><div class="am">Emergencia · pin 6</div></div>
+      <div class="act" id="a-vlv"><div class="an">Válvula <span class="abadge" id="b-vlv">—</span></div><div class="am">LED rojo · pin 4</div></div>
+      <div class="act" id="a-asp"><div class="an">Aspersor <span class="abadge" id="b-asp">—</span></div><div class="am">LED azul · pin 2</div></div>
+      <div class="act" id="a-buz"><div class="an">Buzzer <span class="abadge" id="b-buz">—</span></div><div class="am">Alarma · pin 7</div></div>
+    </div>
   </div>
-  <div class="leg">
-    <div class="leg-line" style="background:#5a6080;opacity:.5;border-top:1.5px dashed #5a6080;height:0;border-radius:0"></div>
-    P4 — normal
-  </div>
+
+  <svg id="arrows-svg"></svg>
 </div>
 
-<footer>pasa el cursor por cada prioridad para ver más detalles</footer>
+<div class="detail" id="detail"></div>
 
-<div class="tooltip" id="tip"></div>
+<div class="leg">
+  <div class="li"><div class="ll" style="background:#dc2626"></div>P0–P1 gas / explosión</div>
+  <div class="li"><div class="ll" style="background:#ea580c"></div>P2–P3 incendio</div>
+  <div class="li"><div class="ll" style="background:#ca8a04"></div>P4–P5 prealerta</div>
+  <div class="li"><div class="ll" style="background:#2563eb"></div>P6 presión</div>
+  <div class="li"><div class="ll" style="background:#16a34a"></div>P7–P8 normal</div>
+</div>
+</div>
+</div>
+
+<!-- ══════════ PANEL 2 ══════════ -->
+<div class="panel" id="panel-matriz">
+<div class="mat-wrap">
+  <div class="mat-title">Matriz de decisión — combinaciones de variables y respuesta del sistema</div>
+  <table class="mat-table">
+    <thead>
+      <tr>
+        <th>Prio.</th><th>Llama</th><th>Gas</th><th>Temp</th><th>Presión</th>
+        <th>V1</th><th>V2</th><th>V3</th><th>Válvula</th><th>Aspersor</th><th>Buzzer</th><th>Razón</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="p-lbl crit">P0 CRÍTICA</span></td><td class="cx">SÍ</td><td class="cx">&gt;20% LEL</td><td class="cx">—</td><td class="cx">—</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td class="v-on">CERRADA</td><td class="v-on">ON</td><td class="v-on">CONT.</td><td>Gas+llama. Nada se mueve.</td></tr>
+      <tr><td><span class="p-lbl crit">P1 GAS</span></td><td class="cx">NO</td><td class="cx">&gt;20% LEL</td><td class="cx">normal</td><td class="cx">—</td><td class="v-on">100%</td><td class="v-on">100%</td><td class="v-on">100%</td><td class="v-on">CERRADA</td><td class="v-off">OFF</td><td class="v-on">150ms</td><td>Diluir GLP bajo LEL.</td></tr>
+      <tr><td><span class="p-lbl emg">P2 INC.SEV</span></td><td class="cx">SÍ</td><td class="cx">normal</td><td class="cx">&gt;90°C</td><td class="cx">—</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td class="v-on">CERRADA</td><td class="v-on">ON</td><td class="v-on">150ms</td><td>Aire propaga llamas.</td></tr>
+      <tr><td><span class="p-lbl emg">P3 INC.MOD</span></td><td class="cx">SÍ</td><td class="cx">normal</td><td class="cx">60–90°C</td><td class="cx">—</td><td class="v-off">OFF</td><td class="v-on">100%</td><td class="v-off">OFF</td><td class="v-on">CERRADA</td><td class="v-on">ON</td><td class="v-on">250ms</td><td>Solo extracción, sin oxígeno nuevo.</td></tr>
+      <tr><td><span class="p-lbl warn">P4 PRE-GAS</span></td><td class="cx">NO</td><td class="cx">10–20% LEL</td><td class="cx">normal</td><td class="cx">normal</td><td class="v-pwm">PWM+</td><td class="v-pwm">PWM+</td><td class="v-off">OFF</td><td class="v-off">ABIERTA</td><td class="v-off">OFF</td><td class="v-on">500ms</td><td>Ventilación antes de emergencia.</td></tr>
+      <tr><td><span class="p-lbl warn">P5 P+GAS</span></td><td class="cx">NO</td><td class="cx">10–20% LEL</td><td class="cx">normal</td><td class="cx">ALTA</td><td class="v-off">OFF</td><td class="v-on">100%</td><td class="v-on">100%</td><td class="v-off">ABIERTA</td><td class="v-off">OFF</td><td class="v-on">400ms</td><td>Presión concentra gas.</td></tr>
+      <tr><td><span class="p-lbl info">P6 PRESIÓN</span></td><td class="cx">NO</td><td class="cx">normal</td><td class="cx">normal</td><td class="cx">ALTA</td><td class="v-pwm">PWM−</td><td class="v-pwm">PWM+</td><td class="v-off">OFF</td><td class="v-off">ABIERTA</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td>Diferencial de flujo silencioso.</td></tr>
+      <tr><td><span class="p-lbl ok">P7 TEMP</span></td><td class="cx">NO</td><td class="cx">normal</td><td class="cx">30–60°C</td><td class="cx">normal</td><td class="v-pwm">PWM</td><td class="v-pwm">PWM</td><td class="v-off">OFF</td><td class="v-off">ABIERTA</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td>Control proporcional suave.</td></tr>
+      <tr><td><span class="p-lbl mon">P8 MONIT.</span></td><td class="cx">SÍ</td><td class="cx">normal</td><td class="cx">&lt;60°C</td><td class="cx">normal</td><td class="v-pwm">normal</td><td class="v-pwm">normal</td><td class="v-off">OFF</td><td class="v-off">ABIERTA</td><td class="v-off">OFF</td><td class="v-off">OFF</td><td>Confirmar 10s antes de actuar.</td></tr>
+    </tbody>
+  </table>
+  <div class="note-box">
+    <h3>Notas técnicas para el firmware</h3>
+    <p><b>Temporizador de confirmación:</b> Solo P0 y P1 actúan de forma inmediata. P2, P3 y P8 requieren <code>CONFIRM_MS = 10000</code> ms de condición sostenida antes de escalar. Elimina falsos positivos por vapor al cocinar.</p>
+    <p><b>ΔT/s — velocidad de cambio:</b> Array circular de las últimas 10 lecturas. Si la diferencia entre la lectura más reciente y la más antigua supera <code>DELTA_UMBRAL = 2.0</code> °C/s con llama activa, escala inmediatamente a P3 sin esperar el umbral absoluto.</p>
+    <p><b>Escala de gas en % LEL para MQ-2:</b> Correlación aproximada para GLP — <code>raw 200 ≈ 10% LEL</code> · <code>raw 400 ≈ 20% LEL</code> · <code>raw 750 ≈ 40% LEL</code>. Calibrar con gas real en el prototipo físico.</p>
+    <p><b>Presión diferencial:</b> El BMP280 entrega hPa. Tomar la lectura inicial como referencia y comparar diferencialmente: <code>ΔP &gt; +8 hPa</code> respecto al arranque activa P6. Nunca comparar contra valor absoluto.</p>
+    <p><b>P0 y chispas eléctricas:</b> En P0 apagar también los motores DC detiene posibles chispas de las escobillas. El relay de la válvula ya corta el gas. Es el único estado donde el sistema queda completamente inerte.</p>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ PANEL 3 ══════════ -->
+<div class="panel" id="panel-estados">
+<div class="uml-wrap">
+  <div class="uml-box">
+  <svg viewBox="0 0 860 700" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono,monospace">
+  <defs>
+    <marker id="mn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 2L9 5L1 8" fill="none" stroke="#a1a1aa" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+    <marker id="mr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 2L9 5L1 8" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+    <marker id="mo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 2L9 5L1 8" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M1 2L9 5L1 8" fill="none" stroke="#52525b" stroke-width="1.5" stroke-linecap="round"/>
+    </marker>
+  </defs>
+
+  <!-- INICIO -->
+  <circle cx="430" cy="28" r="10" fill="#18181b"/>
+  <text x="430" y="52" text-anchor="middle" font-size="9" fill="#a1a1aa">inicio</text>
+  <line x1="430" y1="38" x2="430" y2="68" stroke="#a1a1aa" stroke-width="1" marker-end="url(#mn)"/>
+
+  <!-- NORMAL -->
+  <rect x="340" y="68" width="180" height="46" rx="6" fill="#fafafa" stroke="#18181b" stroke-width="1.5"/>
+  <text x="430" y="87" text-anchor="middle" font-size="11" font-weight="500" fill="#18181b" font-family="IBM Plex Sans,sans-serif">NORMAL</text>
+  <text x="430" y="103" text-anchor="middle" font-size="8" fill="#a1a1aa">sensores cada 500ms</text>
+
+  <!-- P8 MONITOREO -->
+  <rect x="650" y="68" width="178" height="46" rx="6" fill="#fafafa" stroke="#d4d4d8" stroke-width="1"/>
+  <text x="739" y="87" text-anchor="middle" font-size="10" font-weight="500" fill="#52525b" font-family="IBM Plex Sans,sans-serif">P8 Monitoreo</text>
+  <text x="739" y="103" text-anchor="middle" font-size="8" fill="#a1a1aa">llama · esperar 10s</text>
+
+  <!-- P7 TEMP -->
+  <rect x="650" y="158" width="178" height="46" rx="6" fill="#fafafa" stroke="#d4d4d8" stroke-width="1"/>
+  <text x="739" y="177" text-anchor="middle" font-size="10" font-weight="500" fill="#52525b" font-family="IBM Plex Sans,sans-serif">P7 Temp Alta</text>
+  <text x="739" y="193" text-anchor="middle" font-size="8" fill="#a1a1aa">PWM proporcional</text>
+
+  <!-- P6 PRESION -->
+  <rect x="650" y="248" width="178" height="46" rx="6" fill="#fafafa" stroke="#d4d4d8" stroke-width="1"/>
+  <text x="739" y="267" text-anchor="middle" font-size="10" font-weight="500" fill="#52525b" font-family="IBM Plex Sans,sans-serif">P6 Presión Alta</text>
+  <text x="739" y="283" text-anchor="middle" font-size="8" fill="#a1a1aa">diferencial extracción</text>
+
+  <!-- P5 PRESION+GAS -->
+  <rect x="650" y="338" width="178" height="46" rx="6" fill="#fafafa" stroke="#d4d4d8" stroke-width="1.5"/>
+  <text x="739" y="357" text-anchor="middle" font-size="10" font-weight="500" fill="#52525b" font-family="IBM Plex Sans,sans-serif">P5 Presión+Gas</text>
+  <text x="739" y="373" text-anchor="middle" font-size="8" fill="#a1a1aa">extracción máx · alerta</text>
+
+  <!-- P4 PREALERTA -->
+  <rect x="340" y="168" width="180" height="46" rx="6" fill="#fafafa" stroke="#ca8a04" stroke-width="1"/>
+  <text x="430" y="187" text-anchor="middle" font-size="10" font-weight="500" fill="#92400e" font-family="IBM Plex Sans,sans-serif">P4 Prealerta Gas</text>
+  <text x="430" y="203" text-anchor="middle" font-size="8" fill="#a1a1aa">ventilación + · alerta</text>
+
+  <!-- P3 INCENDIO MOD -->
+  <rect x="32" y="268" width="178" height="46" rx="6" fill="#fafafa" stroke="#ea580c" stroke-width="1.5"/>
+  <text x="121" y="287" text-anchor="middle" font-size="10" font-weight="500" fill="#ea580c" font-family="IBM Plex Sans,sans-serif">P3 Incendio Mod.</text>
+  <text x="121" y="303" text-anchor="middle" font-size="8" fill="#a1a1aa">solo extracción · asp</text>
+
+  <!-- P2 INCENDIO SEV -->
+  <rect x="32" y="378" width="178" height="46" rx="6" fill="#fafafa" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="121" y="397" text-anchor="middle" font-size="10" font-weight="500" fill="#dc2626" font-family="IBM Plex Sans,sans-serif">P2 Incendio Sev.</text>
+  <text x="121" y="413" text-anchor="middle" font-size="8" fill="#a1a1aa">todo OFF · asp · válvula</text>
+
+  <!-- P1 EMERGENCIA GAS -->
+  <rect x="295" y="448" width="178" height="46" rx="6" fill="#fafafa" stroke="#dc2626" stroke-width="2"/>
+  <text x="384" y="467" text-anchor="middle" font-size="10" font-weight="500" fill="#dc2626" font-family="IBM Plex Sans,sans-serif">P1 Emergencia Gas</text>
+  <text x="384" y="483" text-anchor="middle" font-size="8" fill="#a1a1aa">vent×3 máx · válvula</text>
+
+  <!-- P0 CRITICA -->
+  <rect x="270" y="568" width="230" height="60" rx="6" fill="#fef2f2" stroke="#dc2626" stroke-width="2.5"/>
+  <text x="385" y="591" text-anchor="middle" font-size="11" font-weight="500" fill="#dc2626" font-family="IBM Plex Sans,sans-serif">P0 CRÍTICA ABSOLUTA</text>
+  <text x="385" y="607" text-anchor="middle" font-size="8" fill="#b91c1c">GAS + LLAMA SIMULTÁNEOS</text>
+  <text x="385" y="620" text-anchor="middle" font-size="8" fill="#b91c1c">TODO OFF · EVACUACIÓN</text>
+
+  <!-- TRANSICIONES -->
+  <!-- inicio ya dibujado -->
+
+  <!-- NORMAL → P8 -->
+  <path d="M520 91 Q585 91 650 91" fill="none" stroke="#a1a1aa" stroke-width="1" marker-end="url(#mn)"/>
+  <text x="585" y="85" text-anchor="middle" font-size="8" fill="#a1a1aa">llama sola</text>
+
+  <!-- NORMAL → P7 -->
+  <path d="M520 101 Q600 130 650 177" fill="none" stroke="#a1a1aa" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#mn)"/>
+  <text x="606" y="130" font-size="8" fill="#a1a1aa">T&gt;30°C</text>
+
+  <!-- NORMAL → P6 -->
+  <path d="M430 114 Q430 195 590 267" fill="none" stroke="#a1a1aa" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#mn)"/>
+  <text x="452" y="195" font-size="8" fill="#a1a1aa">P↑</text>
+
+  <!-- NORMAL → P4 -->
+  <line x1="430" y1="114" x2="430" y2="168" stroke="#ca8a04" stroke-width="1.5" marker-end="url(#mn)"/>
+  <text x="438" y="146" font-size="8" fill="#ca8a04">gas 10–20%</text>
+
+  <!-- NORMAL → P1 directo (gas>20%) -->
+  <path d="M340 100 Q220 250 330 448" fill="none" stroke="#dc2626" stroke-width="1.5" marker-end="url(#mr)"/>
+  <text x="240" y="270" font-size="8" fill="#dc2626">gas&gt;20%</text>
+
+  <!-- P8 → P3 (llama + ΔT) -->
+  <path d="M650 95 Q560 95 450 180 Q320 240 210 268" fill="none" stroke="#ea580c" stroke-width="1.5" marker-end="url(#mo)"/>
+  <text x="390" y="195" text-anchor="middle" font-size="8" fill="#ea580c">+ΔT rápido</text>
+
+  <!-- P7 → P3 (llama) -->
+  <path d="M650 183 Q500 210 210 285" fill="none" stroke="#ea580c" stroke-width="1.5" marker-end="url(#mo)"/>
+  <text x="420" y="228" text-anchor="middle" font-size="8" fill="#ea580c">+llama</text>
+
+  <!-- P4 → P1 (gas sube) -->
+  <path d="M380 214 Q340 330 340 448" fill="none" stroke="#dc2626" stroke-width="1.5" marker-end="url(#mr)"/>
+  <text x="326" y="330" font-size="8" fill="#dc2626">gas&gt;20%</text>
+
+  <!-- P5 → P1 -->
+  <path d="M650 365 Q560 400 474 460" fill="none" stroke="#dc2626" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#mr)"/>
+  <text x="580" y="418" font-size="8" fill="#dc2626">gas↑</text>
+
+  <!-- P3 → P2 (T>90) -->
+  <line x1="121" y1="314" x2="121" y2="378" stroke="#dc2626" stroke-width="1.5" marker-end="url(#mr)"/>
+  <text x="130" y="352" font-size="8" fill="#dc2626">T&gt;90°C</text>
+
+  <!-- P3 → P0 (+gas) -->
+  <path d="M210 308 Q260 430 310 568" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#mr)"/>
+  <text x="228" y="440" font-size="8" fill="#dc2626">+gas↑</text>
+
+  <!-- P1 → P0 (+llama) -->
+  <line x1="384" y1="494" x2="384" y2="568" stroke="#dc2626" stroke-width="2" marker-end="url(#mr)"/>
+  <text x="392" y="536" font-size="8" fill="#dc2626">+llama</text>
+
+  <!-- P2 → P0 (+gas) -->
+  <path d="M210 400 Q240 490 300 568" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="3 2" marker-end="url(#mr)"/>
+  <text x="218" y="490" font-size="8" fill="#dc2626">+gas↑</text>
+
+  <!-- vuelta a normal -->
+  <path d="M828 68 Q858 68 858 35 Q858 10 560 10 Q480 10 480 68" fill="none" stroke="#52525b" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#mg)"/>
+  <text x="720" y="8" text-anchor="middle" font-size="8" fill="#52525b">condición resuelta</text>
+
+  <!-- LEYENDA -->
+  <rect x="20" y="640" width="560" height="44" rx="5" fill="#fafafa" stroke="#e4e4e7" stroke-width="1"/>
+  <line x1="40" y1="658" x2="75" y2="658" stroke="#dc2626" stroke-width="2" marker-end="url(#mr)"/>
+  <text x="85" y="662" font-size="8" fill="#52525b">Escalada emergencia (inmediata)</text>
+  <line x1="240" y1="658" x2="275" y2="658" stroke="#a1a1aa" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#mn)"/>
+  <text x="285" y="662" font-size="8" fill="#52525b">Transición normal</text>
+  <line x1="400" y1="658" x2="435" y2="658" stroke="#52525b" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="445" y="662" font-size="8" fill="#52525b">Condición adicional</text>
+  <text x="30" y="676" font-size="7" fill="#a1a1aa">Toda vuelta a NORMAL requiere condición resuelta confirmada durante CONFIRM_MS</text>
+  </svg>
+  </div>
+  <div class="uml-note">
+    <b>Cómo leer este diagrama:</b> Cada rectángulo es un estado del sistema. Las flechas rojas sólidas son escaladas de emergencia — ocurren de forma inmediata sin temporizador. Las grises son transiciones normales que pueden requerir confirmación. Las grises discontinuas son condiciones adicionales que causan escalada desde un estado ya activo. Toda transición de vuelta a NORMAL requiere que la condición haya desaparecido y que el sistema confirme durante <code>CONFIRM_MS = 10000ms</code>.
+  </div>
+</div>
+</div>
+
+<div class="tip" id="tip"></div>
 
 <script>
-const tip = document.getElementById('tip');
+const PD = [
+  {label:'P0 — Crítica Absoluta',
+   cond:['Gas > 20% LEL activo','Llama detectada simultáneamente'],
+   act:['Vent1 OFF — no mover gas hacia llama','Vent2 OFF','Vent3 OFF','Válvula CERRADA','Aspersor ON','Buzzer continuo'],
+   why:['Chispa de motores DC puede detonar mezcla gas-aire','Sin movimiento de aire el gas no se acerca más a la llama','El aspersor suprime sin electricidad adicional'],
+   acts:{v1:'OFF',v2:'OFF',v3:'OFF',vlv:'CERRADA',asp:'ON',buz:'CONT.'}},
+  {label:'P1 — Emergencia Gas',
+   cond:['Gas > 20% LEL','Sin llama detectada'],
+   act:['Vent1 → 100%','Vent2 → 100%','Vent3 → 100%','Válvula CERRADA','Aspersor OFF','Buzzer 150ms'],
+   why:['Sin llama: diluir concentración por debajo del LEL','GLP más pesado que el aire — barrer desde abajo','Aspersor OFF: agua y GLP líquido no mezclan bien'],
+   acts:{v1:'100%',v2:'100%',v3:'100%',vlv:'CERRADA',asp:'OFF',buz:'150ms'}},
+  {label:'P2 — Incendio Severo',
+   cond:['Llama detectada','Temperatura > 90°C'],
+   act:['Todos los ventiladores OFF','Válvula CERRADA','Aspersor ON','Buzzer 150ms'],
+   why:['A >90°C el flujo propaga llamas lateralmente','Cortar ventilación priva al fuego de nuevo oxígeno','Solo la supresión activa es efectiva a esta temperatura'],
+   acts:{v1:'OFF',v2:'OFF',v3:'OFF',vlv:'CERRADA',asp:'ON',buz:'150ms'}},
+  {label:'P3 — Incendio Moderado',
+   cond:['Llama detectada','Temperatura 60–90°C','ΔT/s > 2°C por lectura'],
+   act:['Vent1 OFF — no meter oxígeno','Vent2 100% — sacar humo','Válvula CERRADA','Aspersor ON','Buzzer 250ms'],
+   why:['Solo extracción: humo sale sin aire fresco hacia el fuego','Presión interior cae, fuego consume oxígeno local','Requiere 10s de confirmación para evitar falso positivo'],
+   acts:{v1:'OFF',v2:'100%',v3:'OFF',vlv:'CERRADA',asp:'ON',buz:'250ms'}},
+  {label:'P4 — Prealerta Gas',
+   cond:['Gas 10–20% LEL','Sin llama','Temperatura normal'],
+   act:['Vent1 PWM+ (acelerado)','Vent2 PWM+ (acelerado)','Buzzer 500ms lento'],
+   why:['Zona de alerta: actuar antes de que sea emergencia','Buzzer lento avisa al operario sin pánico','Válvula abierta: el gas sigue disponible para cocinar'],
+   acts:{v1:'PWM+',v2:'PWM+',v3:'OFF',vlv:'ABIERTA',asp:'OFF',buz:'500ms'}},
+  {label:'P5 — Presión + Gas',
+   cond:['Presión > umbral','Gas 10–20% LEL'],
+   act:['Vent1 OFF','Vent2 100%','Vent3 100%','Buzzer 400ms'],
+   why:['Presión alta concentra el gas — más urgente que P4','Extracción máxima baja presión Y concentración','Sin inyección para no distribuir el gas por la cocina'],
+   acts:{v1:'OFF',v2:'100%',v3:'100%',vlv:'ABIERTA',asp:'OFF',buz:'400ms'}},
+  {label:'P6 — Presión Alta',
+   cond:['Presión > umbral','Gas normal','Sin llama'],
+   act:['Vent1 PWM reducido','Vent2 PWM aumentado','Sin alarma — ajuste silencioso'],
+   why:['Diferencial crea presión negativa controlada','Presión negativa evita inversión del tiro de los fogones','Sin alarma: operación automática transparente'],
+   acts:{v1:'PWM−',v2:'PWM+',v3:'OFF',vlv:'ABIERTA',asp:'OFF',buz:'OFF'}},
+  {label:'P7 — Temperatura Alta',
+   cond:['Temperatura 30–60°C','Sin llama','Gas normal'],
+   act:['Vent1 PWM proporcional a temperatura','Vent2 PWM proporcional','ΔT/s también influye en la velocidad de respuesta'],
+   why:['Control suave y continuo, no binario','ΔT/s activa ventilación antes del umbral absoluto','El PIR puede reducir ventilación sin personas presentes'],
+   acts:{v1:'PWM',v2:'PWM',v3:'OFF',vlv:'ABIERTA',asp:'OFF',buz:'OFF'}},
+  {label:'P8 — Monitoreo de Llama',
+   cond:['Llama detectada','Temperatura < 60°C estable','Gas normal'],
+   act:['Ventilación sin cambio','Iniciar temporizador 10s','Si ΔT/s alto → escalar a P3','Si estable → log sin alarma'],
+   why:['Fogones encendidos normalmente tienen llama','Falso positivo constante inutiliza el sistema','10s de confirmación elimina falsos sin sacrificar seguridad'],
+   acts:{v1:'normal',v2:'normal',v3:'OFF',vlv:'ABIERTA',asp:'OFF',buz:'OFF'}}
+];
 
-document.querySelectorAll('[data-tip]').forEach(el => {
-  el.addEventListener('mouseenter', e => {
-    tip.textContent = el.dataset.tip;
-    tip.classList.add('show');
+const ACTS = ['v1','v2','v3','vlv','asp','buz'];
+const S_FOR = {0:['s-llama','s-gas'],1:['s-gas'],2:['s-llama','s-temp'],3:['s-llama','s-temp','s-dt'],4:['s-gas'],5:['s-pres','s-gas'],6:['s-pres'],7:['s-temp','s-dt'],8:['s-llama']};
+const A_FOR = {0:ACTS.map(k=>'a-'+k),1:['a-v1','a-v2','a-v3','a-vlv','a-buz'],2:ACTS.map(k=>'a-'+k),3:['a-v2','a-vlv','a-asp','a-buz'],4:['a-v1','a-v2','a-buz'],5:['a-v2','a-v3','a-buz'],6:['a-v1','a-v2'],7:['a-v1','a-v2'],8:[]};
+const COLS = ['#dc2626','#dc2626','#ea580c','#ea580c','#ca8a04','#2563eb','#2563eb','#16a34a','#71717a'];
+let sel = null;
+
+function selectPrio(n){
+  sel = n;
+  const d = PD[n];
+  document.querySelectorAll('.pr').forEach((el,i)=>{
+    el.classList.remove('selected','dim');
+    el.classList.add(i===n?'selected':'dim');
   });
-  el.addEventListener('mousemove', e => {
-    let x = e.clientX + 14, y = e.clientY + 14;
-    if (x + 240 > window.innerWidth) x = e.clientX - 230;
-    if (y + 100 > window.innerHeight) y = e.clientY - 90;
-    tip.style.left = x + 'px';
-    tip.style.top  = y + 'px';
+  ACTS.forEach(k=>{
+    const el=document.getElementById('a-'+k);
+    const badge=document.getElementById('b-'+k);
+    const val=d.acts[k];
+    el.className='act';
+    badge.textContent=val;
+    if(val==='OFF'||val==='ABIERTA') { /* plain */ }
+    else if(val==='CERRADA'||val==='ON'||val==='CONT.'||val.includes('%')||val.includes('ms')) el.classList.add('st-on');
+    else el.classList.add('st-pwm');
   });
-  el.addEventListener('mouseleave', () => tip.classList.remove('show'));
+  const det=document.getElementById('detail');
+  det.classList.add('show');
+  det.innerHTML=`<div class="det-top"><div class="det-badge" style="border-color:${COLS[n]};color:${COLS[n]};background:${COLS[n]}11">${d.label}</div></div>
+  <div class="det-cols">
+    <div class="det-col"><h4>Condiciones de activación</h4><ul>${d.cond.map(c=>`<li><b>${c}</b></li>`).join('')}</ul></div>
+    <div class="det-col"><h4>Respuesta del sistema</h4><ul>${d.act.map(a=>`<li>${a}</li>`).join('')}</ul></div>
+    <div class="det-col"><h4>Justificación técnica</h4><ul>${d.why.map(w=>`<li>${w}</li>`).join('')}</ul></div>
+  </div>`;
+  drawArrows(n);
+}
+
+function reset(){
+  sel=null;
+  document.querySelectorAll('.pr').forEach(el=>el.classList.remove('selected','dim'));
+  ACTS.forEach(k=>{
+    const el=document.getElementById('a-'+k);
+    el.className='act';
+    document.getElementById('b-'+k).textContent='—';
+  });
+  document.getElementById('detail').classList.remove('show');
+  drawArrows(-1);
+}
+
+document.getElementById('diag').addEventListener('click',e=>{if(!e.target.closest('.pr'))reset();});
+
+// tooltip
+const tip=document.getElementById('tip');
+document.querySelectorAll('[data-tip]').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{tip.textContent=el.dataset.tip;tip.classList.add('show');});
+  el.addEventListener('mousemove',e=>{
+    let x=e.clientX+14,y=e.clientY+14;
+    if(x+270>innerWidth)x=e.clientX-260;
+    if(y+80>innerHeight)y=e.clientY-70;
+    tip.style.left=x+'px';tip.style.top=y+'px';
+  });
+  el.addEventListener('mouseleave',()=>tip.classList.remove('show'));
 });
 
-function getCenter(id) {
-  const el = document.getElementById(id);
-  const wr = document.getElementById('diagram').getBoundingClientRect();
-  const r  = el.getBoundingClientRect();
-  return {
-    x:  r.left - wr.left + r.width / 2,
-    y:  r.top  - wr.top  + r.height / 2,
-    rx: r.right  - wr.left,
-    lx: r.left   - wr.left,
-    ty: r.top    - wr.top,
-    by: r.bottom - wr.top,
-  };
+// arrows
+function bbox(id){
+  const el=document.getElementById(id);
+  if(!el)return null;
+  const wr=document.getElementById('diag').getBoundingClientRect();
+  const r=el.getBoundingClientRect();
+  return{cx:r.left-wr.left+r.width/2,cy:r.top-wr.top+r.height/2,
+         rx:r.right-wr.left,lx:r.left-wr.left,ty:r.top-wr.top,by:r.bottom-wr.top,w:r.width,h:r.height};
 }
 
-let arrowCount = 0;
-function arrow(svg, x1, y1, x2, y2, color, dash, opa) {
-  const id = 'mk' + (arrowCount++);
-  const ns = 'http://www.w3.org/2000/svg';
-
-  let defs = svg.querySelector('defs');
-  if (!defs) { defs = document.createElementNS(ns,'defs'); svg.prepend(defs); }
-
-  const mk = document.createElementNS(ns,'marker');
-  mk.setAttribute('id', id);
-  mk.setAttribute('viewBox','0 0 8 8');
-  mk.setAttribute('refX','6'); mk.setAttribute('refY','4');
-  mk.setAttribute('markerWidth','5'); mk.setAttribute('markerHeight','5');
+let awc=0;
+function mkPath(svg,x1,y1,x2,y2,col,dash,op){
+  const ns='http://www.w3.org/2000/svg';
+  const id='aw'+(awc++);
+  let defs=svg.querySelector('defs');
+  if(!defs){defs=document.createElementNS(ns,'defs');svg.prepend(defs);}
+  const mk=document.createElementNS(ns,'marker');
+  mk.setAttribute('id',id);mk.setAttribute('viewBox','0 0 10 10');
+  mk.setAttribute('refX','8');mk.setAttribute('refY','5');
+  mk.setAttribute('markerWidth','5');mk.setAttribute('markerHeight','5');
   mk.setAttribute('orient','auto-start-reverse');
-  const mp = document.createElementNS(ns,'path');
-  mp.setAttribute('d','M1 1.5L7 4L1 6.5');
-  mp.setAttribute('fill','none');
-  mp.setAttribute('stroke', color);
-  mp.setAttribute('stroke-width','1.5');
+  const mp=document.createElementNS(ns,'path');
+  mp.setAttribute('d','M1 2L8 5L1 8');mp.setAttribute('fill','none');
+  mp.setAttribute('stroke',col);mp.setAttribute('stroke-width','1.5');
   mp.setAttribute('stroke-linecap','round');
-  mp.setAttribute('stroke-linejoin','round');
-  mk.appendChild(mp); defs.appendChild(mk);
-
-  const path = document.createElementNS(ns,'path');
-  const cx1 = x1 + (x2 - x1) * 0.45;
-  const cx2 = x2 - (x2 - x1) * 0.45;
-  path.setAttribute('d', `M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}`);
-  path.setAttribute('fill','none');
-  path.setAttribute('stroke', color);
-  path.setAttribute('stroke-width','1.5');
-  path.setAttribute('stroke-opacity', opa ?? '0.7');
-  if (dash) path.setAttribute('stroke-dasharray', dash);
-  path.setAttribute('marker-end',`url(#${id})`);
-  svg.appendChild(path);
+  mk.appendChild(mp);defs.appendChild(mk);
+  const p=document.createElementNS(ns,'path');
+  const mx=(x1+x2)/2;
+  p.setAttribute('d',`M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`);
+  p.setAttribute('fill','none');p.setAttribute('stroke',col);
+  p.setAttribute('stroke-width','1.5');p.setAttribute('stroke-opacity',op||'.85');
+  if(dash)p.setAttribute('stroke-dasharray',dash);
+  p.setAttribute('marker-end',`url(#${id})`);
+  svg.appendChild(p);
 }
 
-function drawArrows() {
-  const svg = document.getElementById('arrows');
-  svg.innerHTML = '';
-  const wr = document.getElementById('diagram').getBoundingClientRect();
-  svg.setAttribute('viewBox', `0 0 ${wr.width} ${wr.height}`);
-
-  const s   = { temp: getCenter('s-temp'), gas: getCenter('s-gas'), pres: getCenter('s-pres') };
-  const p   = { p1: getCenter('p1'), p2: getCenter('p2'), p3: getCenter('p3'), p4: getCenter('p4') };
-  const o   = { v1: getCenter('o-v1'), v2: getCenter('o-v2'), v3: getCenter('o-v3'),
-                vlv: getCenter('o-vlv'), asp: getCenter('o-asp'), buz: getCenter('o-buz') };
-
-  const RED   = '#e25454', AMB = '#d4893a', COR = '#c76845', TEA = '#3aad8a', BLU = '#4a9fd4', GRY = '#5a6080';
-
-  arrow(svg, s.gas.rx,  s.gas.y,  p.p1.lx, p.p1.y,  RED, null, '0.85');
-  arrow(svg, s.temp.rx, s.temp.y, p.p2.lx, p.p2.y,  AMB, '5 3', '0.7');
-  arrow(svg, s.pres.rx, s.pres.y, p.p3.lx, p.p3.y,  COR, null, '0.7');
-  arrow(svg, s.temp.rx, s.temp.y, p.p4.lx, p.p4.y,  TEA, null, '0.7');
-  arrow(svg, s.gas.rx,  s.gas.y,  p.p4.lx, p.p4.y,  BLU, '3 4', '0.45');
-
-  arrow(svg, p.p1.rx, p.p1.y, o.v1.lx,  o.v1.y,  RED, null, '0.85');
-  arrow(svg, p.p1.rx, p.p1.y, o.v2.lx,  o.v2.y,  RED, null, '0.85');
-  arrow(svg, p.p1.rx, p.p1.y, o.v3.lx,  o.v3.y,  RED, null, '0.85');
-  arrow(svg, p.p1.rx, p.p1.y, o.vlv.lx, o.vlv.y, RED, null, '0.85');
-  arrow(svg, p.p1.rx, p.p1.y, o.buz.lx, o.buz.y, RED, null, '0.85');
-
-  arrow(svg, p.p2.rx, p.p2.y, o.v1.lx,  o.v1.y,  AMB, '5 3', '0.65');
-  arrow(svg, p.p2.rx, p.p2.y, o.v2.lx,  o.v2.y,  AMB, '5 3', '0.65');
-  arrow(svg, p.p2.rx, p.p2.y, o.vlv.lx, o.vlv.y, AMB, '5 3', '0.65');
-  arrow(svg, p.p2.rx, p.p2.y, o.asp.lx, o.asp.y, AMB, '5 3', '0.65');
-  arrow(svg, p.p2.rx, p.p2.y, o.buz.lx, o.buz.y, AMB, '5 3', '0.65');
-
-  arrow(svg, p.p3.rx, p.p3.y, o.v2.lx, o.v2.y,  COR, '3 4', '0.6');
-
-  arrow(svg, p.p4.rx, p.p4.y, o.v1.lx, o.v1.y,  GRY, '2 5', '0.45');
-  arrow(svg, p.p4.rx, p.p4.y, o.v2.lx, o.v2.y,  GRY, '2 5', '0.45');
+function drawArrows(n){
+  const svg=document.getElementById('arrows-svg');
+  svg.innerHTML='';
+  const wr=document.getElementById('diag').getBoundingClientRect();
+  if(!wr.width)return;
+  svg.setAttribute('viewBox',`0 0 ${wr.width} ${wr.height}`);
+  if(n<0)return;
+  const col=COLS[n];
+  const pb=bbox('p'+n);
+  if(!pb)return;
+  (S_FOR[n]||[]).forEach(sid=>{
+    const s=bbox(sid);
+    if(!s)return;
+    mkPath(svg,s.rx,s.cy,pb.lx,pb.cy,col,null,'.8');
+  });
+  (A_FOR[n]||[]).forEach(aid=>{
+    const a=bbox(aid);
+    if(!a)return;
+    mkPath(svg,pb.rx,pb.cy,a.lx,a.cy,col,'5 3','.75');
+  });
 }
 
-window.addEventListener('load',   () => setTimeout(drawArrows, 120));
-window.addEventListener('resize', drawArrows);
+window.addEventListener('load',()=>setTimeout(()=>drawArrows(-1),150));
+window.addEventListener('resize',()=>{if(sel!==null)drawArrows(sel);else drawArrows(-1);});
+
+function switchTab(t){
+  ['diagrama','matriz','estados'].forEach((n,i)=>{
+    document.querySelectorAll('.tab')[i].classList.toggle('active',n===t);
+    document.getElementById('panel-'+n).classList.toggle('active',n===t);
+  });
+}
 </script>
 </body>
 </html>

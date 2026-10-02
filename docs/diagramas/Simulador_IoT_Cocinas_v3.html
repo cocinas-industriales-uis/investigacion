@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador IoT Cocinas v3</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fafafa;--s1:#fff;--s2:#f4f4f5;--s3:#e4e4e7;
+  --bd:#e4e4e7;--bd2:#d4d4d8;--tx:#18181b;--mt:#52525b;--ht:#a1a1aa;
+  --red:#dc2626;--red2:#fef2f2;--red3:#fca5a5;
+  --ora:#ea580c;--ora2:#fff7ed;--ora3:#fdba74;
+  --yel:#ca8a04;--yel2:#fefce8;--yel3:#fde68a;
+  --grn:#16a34a;--grn2:#f0fdf4;
+  --blu:#2563eb;--blu2:#eff6ff;--blu3:#bfdbfe;
+  --font:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:8px;--r2:12px;--sh:0 1px 3px rgba(0,0,0,.06);
+}
+body{background:var(--bg);font-family:var(--font);color:var(--tx);min-height:100vh;padding:36px 20px 60px;display:flex;flex-direction:column;align-items:center}
+
+header{text-align:center;margin-bottom:28px}
+.ey{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--ht);text-transform:uppercase;margin-bottom:8px}
+h1{font-size:18px;font-weight:400;letter-spacing:-.02em;margin-bottom:4px}
+h1 b{font-weight:500}
+.sub{font-size:11px;color:var(--mt)}
+
+.wrap{width:100%;max-width:880px;display:flex;flex-direction:column;gap:10px}
+
+/* ── ALERT ── */
+.alert{border-radius:var(--r);padding:11px 16px;font-size:12px;font-weight:500;display:none;align-items:center;gap:10px;border:1px solid transparent;min-height:40px}
+.alert.show{display:flex}
+.adot{width:7px;height:7px;border-radius:50%;flex-shrink:0;animation:pulse .5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.15}}
+.alert.danger {background:var(--red2);border-color:var(--red3);color:var(--red)} .alert.danger .adot{background:var(--red)}
+.alert.warning{background:var(--ora2);border-color:var(--ora3);color:var(--ora)} .alert.warning .adot{background:var(--ora)}
+.alert.caution{background:var(--yel2);border-color:var(--yel3);color:var(--yel)} .alert.caution .adot{background:var(--yel)}
+.alert.info   {background:var(--blu2);border-color:var(--blu3);color:var(--blu)} .alert.info .adot{background:var(--blu)}
+
+/* ── SENSORES ── */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sc{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px 16px;box-shadow:var(--sh)}
+.slbl{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ht);margin-bottom:8px}
+.sval{font-size:22px;font-weight:500;font-family:var(--mono);color:var(--tx);margin-bottom:10px;line-height:1}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--s3);border-radius:2px;outline:none;margin-bottom:5px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--tx);cursor:pointer;border:2px solid var(--s1);box-shadow:0 0 0 1px var(--bd2)}
+.srng{display:flex;justify-content:space-between;font-size:9px;color:var(--ht);font-family:var(--mono)}
+
+/* toggle llama */
+.toggle{position:relative;display:inline-flex;align-items:center;cursor:pointer;gap:10px}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.tslider{width:42px;height:22px;background:var(--s3);border-radius:11px;border:1px solid var(--bd2);position:relative;transition:all .2s;flex-shrink:0}
+.tslider::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:2px;left:2px;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+input:checked+.tslider{background:var(--red);border-color:var(--red)}
+input:checked+.tslider::after{transform:translateX(20px)}
+.llama-lbl{font-size:12px;font-weight:500;color:var(--mt);transition:color .2s}
+.llama-lbl.on{color:var(--red)}
+.llama-center{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:10px}
+.llama-icon{font-size:28px;transition:all .2s;filter:grayscale(1);opacity:.3}
+.llama-icon.on{filter:none;opacity:1}
+
+/* ── FILA MID ── */
+.mid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* delta */
+.dw{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px 16px;box-shadow:var(--sh)}
+.dtop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.dlbl{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ht)}
+.dval{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--mt)}
+.dnote{font-size:9px;color:var(--ht);font-family:var(--mono);margin-top:6px}
+
+/* ── INTERVALO MQTT ── */
+.mqtt-row{display:flex;align-items:center;justify-content:space-between;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:12px 16px;box-shadow:var(--sh)}
+.mqtt-lbl{font-family:var(--mono);font-size:10px;color:var(--ht);text-transform:uppercase;letter-spacing:.1em}
+.mqtt-val{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--tx)}
+.mqtt-badge{font-family:var(--mono);font-size:9px;padding:3px 10px;border-radius:20px;border:1px solid var(--bd2);background:var(--s2);color:var(--mt);transition:all .2s}
+.mqtt-bar-wrap{flex:1;margin:0 16px;height:4px;background:var(--s3);border-radius:2px;overflow:hidden}
+.mqtt-bar{height:100%;background:var(--tx);border-radius:2px;transition:width .1s linear}
+
+/* lcd */
+.lcd{background:#0c1a0c;border-radius:var(--r2);padding:14px 18px;border:1px solid #1a2e1a}
+.lcd-hd{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:#2a442a;text-transform:uppercase;margin-bottom:8px}
+.lcd-l{font-family:var(--mono);font-size:15px;color:#4ade80;letter-spacing:.04em;height:22px;white-space:pre}
+.lcd-l+.lcd-l{margin-top:4px}
+
+/* fans */
+.fans{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fc{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:14px;text-align:center;box-shadow:var(--sh)}
+.fl{font-size:10px;font-weight:500;color:var(--ht);margin-bottom:10px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.fi{width:48px;height:48px;border-radius:50%;border:1.5px solid var(--bd);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;transition:border-color .2s}
+.fi svg{width:28px;height:28px}
+.fv{font-size:22px;font-weight:500;font-family:var(--mono)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.sl{animation:sp .85s linear infinite}
+.sf{animation:sp .2s linear infinite}
+
+/* status */
+.sts{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.stc{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r2);padding:12px 10px;text-align:center;box-shadow:var(--sh)}
+.stl{font-size:9px;font-weight:500;color:var(--ht);margin-bottom:8px;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em}
+.led{width:14px;height:14px;border-radius:50%;background:var(--s3);border:1.5px solid var(--bd2);margin:0 auto 5px;transition:all .2s}
+.led.r{background:#ef4444;border-color:var(--red);animation:pulse .4s ease-in-out infinite}
+.led.b{background:#3b82f6;border-color:var(--blu);animation:pulse .4s ease-in-out infinite}
+.led.y{background:#eab308;border-color:var(--yel);animation:pulse .3s ease-in-out infinite}
+.led.ys{background:#eab308;border-color:var(--yel);animation:pulse .7s ease-in-out infinite}
+.sts-sub{font-size:10px;color:var(--ht);font-family:var(--mono)}
+.pbadge{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid var(--bd2);background:var(--s2);color:var(--mt);transition:all .25s;margin-top:1px}
+
+/* confirm bar */
+.cbar-wrap{height:3px;background:var(--s3);border-radius:2px;overflow:hidden;margin:5px 0 3px}
+.cbar{height:100%;background:var(--tx);border-radius:2px;transition:width .5s}
+
+/* footer */
+.footer{font-size:9px;color:var(--ht);text-align:center;font-family:var(--mono);line-height:1.8;padding-top:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="ey">ESP32 · MQ-2 · KY-026 · NTC · BMP280 · MQTT</div>
+  <h1>Sistema IoT Cocinas Industriales — <b>Simulador v3</b></h1>
+  <p class="sub">9 prioridades · envío MQTT adaptativo · confirmación temporal P3/P8 (P2 inmediato)</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ALERT -->
+  <div class="alert" id="alert"><div class="adot"></div><span id="alert-msg"></span></div>
+
+  <!-- SENSORES -->
+  <div class="sg">
+    <div class="sc">
+      <div class="slbl">Temperatura — NTC</div>
+      <div class="sval" id="v-temp">15°C</div>
+      <input type="range" min="-10" max="110" value="15" id="sl-temp" oninput="onInput()">
+      <div class="srng"><span>-10°C</span><span>110°C</span></div>
+    </div>
+    <div class="sc">
+      <div class="slbl">Gas GLP — MQ-2</div>
+      <div class="sval" id="v-gas">5%</div>
+      <input type="range" min="0" max="100" value="5" id="sl-gas" oninput="onInput()">
+      <div class="srng"><span>0% LEL</span><span>100% LEL</span></div>
+    </div>
+    <div class="sc">
+      <div class="slbl">Presión — BMP280</div>
+      <div class="sval" id="v-pres">30%</div>
+      <input type="range" min="0" max="100" value="30" id="sl-pres" oninput="onInput()">
+      <div class="srng"><span>0%</span><span>100%</span></div>
+    </div>
+    <div class="sc" style="display:flex;flex-direction:column">
+      <div class="slbl">Llama — KY-026</div>
+      <div class="llama-center">
+        <div class="llama-icon" id="llama-icon">🔥</div>
+        <label class="toggle">
+          <input type="checkbox" id="ck-llama" onchange="onInput()">
+          <span class="tslider"></span>
+          <span class="llama-lbl" id="llama-lbl">sin llama</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELTA + LCD -->
+  <div class="mid">
+    <div class="dw">
+      <div class="dtop">
+        <span class="dlbl">ΔTemp/s</span>
+        <span class="dval" id="v-delta">0.0 °C/s</span>
+      </div>
+      <canvas id="cvs" height="48" style="width:100%;display:block"></canvas>
+      <div class="dnote">Umbral P3: &gt;2.0 °C/s con llama → escala inmediatamente</div>
+    </div>
+    <div class="lcd">
+      <div class="lcd-hd">LCD 16×2</div>
+      <div class="lcd-l" id="lcd1">SISTEMA COCINA  </div>
+      <div class="lcd-l" id="lcd2">Iniciando...    </div>
+    </div>
+  </div>
+
+  <!-- MQTT INTERVALO -->
+  <div class="mqtt-row">
+    <div>
+      <div class="mqtt-lbl">Intervalo MQTT</div>
+      <div class="mqtt-val" id="mqtt-val">5.0 s</div>
+    </div>
+    <div class="mqtt-bar-wrap">
+      <div class="mqtt-bar" id="mqtt-bar" style="width:0%"></div>
+    </div>
+    <span class="mqtt-badge" id="mqtt-badge">Normal</span>
+  </div>
+
+  <!-- VENTILADORES -->
+  <div class="fans">
+    <div class="fc">
+      <div class="fl">Vent 1 — inyección</div>
+      <div class="fi" id="fi1"><svg viewBox="0 0 28 28"><path id="fp1" d="M14 14 C14 9,19 5,23 8 C26 10,23 15,18 15 C23 15,27 19,24 23 C22 26,17 23,15 18 C15 23,11 27,7 24 C4 22,8 17,12 15 C7 15,3 11,6 7 C8 4,14 9,14 14Z" fill="#d4d4d8"/></svg></div>
+      <div class="fv" id="fv1">0%</div>
+    </div>
+    <div class="fc">
+      <div class="fl">Vent 2 — extracción</div>
+      <div class="fi" id="fi2"><svg viewBox="0 0 28 28"><path id="fp2" d="M14 14 C14 9,19 5,23 8 C26 10,23 15,18 15 C23 15,27 19,24 23 C22 26,17 23,15 18 C15 23,11 27,7 24 C4 22,8 17,12 15 C7 15,3 11,6 7 C8 4,14 9,14 14Z" fill="#d4d4d8"/></svg></div>
+      <div class="fv" id="fv2">0%</div>
+    </div>
+    <div class="fc">
+      <div class="fl">Vent 3 — emergencia</div>
+      <div class="fi" id="fi3"><svg viewBox="0 0 28 28"><path id="fp3" d="M14 14 C14 9,19 5,23 8 C26 10,23 15,18 15 C23 15,27 19,24 23 C22 26,17 23,15 18 C15 23,11 27,7 24 C4 22,8 17,12 15 C7 15,3 11,6 7 C8 4,14 9,14 14Z" fill="#d4d4d8"/></svg></div>
+      <div class="fv" id="fv3">0%</div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="sts">
+    <div class="stc">
+      <div class="stl">Válvula</div>
+      <div class="led" id="led-v"></div>
+      <div class="sts-sub" id="lbl-v">abierta</div>
+    </div>
+    <div class="stc">
+      <div class="stl">Aspersor</div>
+      <div class="led" id="led-a"></div>
+      <div class="sts-sub" id="lbl-a">inactivo</div>
+    </div>
+    <div class="stc">
+      <div class="stl">Buzzer</div>
+      <div class="led" id="led-b"></div>
+      <div class="sts-sub" id="lbl-b">silencio</div>
+    </div>
+    <div class="stc">
+      <div class="stl">Confirmación</div>
+      <div class="cbar-wrap"><div class="cbar" id="cbar" style="width:0%"></div></div>
+      <div class="sts-sub" id="lbl-c">—</div>
+    </div>
+    <div class="stc">
+      <div class="stl">Prioridad</div>
+      <span class="pbadge" id="pbadge">Normal</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    P0: Gas+Llama→TODO OFF · P1: Gas>20%LEL→Vent×3 · P2: Llama+T>90°C→OFF+Asp · P3: Llama+T>60°C/ΔT>2→Solo ext.<br>
+    P4: Gas 10–20% LEL→Vent+ · P5: Pres+Gas→Ext.máx · P6: Pres.alta→Diferencial · P7: T>20°C→PWM · P8: Llama sola→Monit.10s<br>
+    <b style="color:var(--tx)">MQTT:</b> P0–P3 → 0.5s · P4–P5 → 1s · P6–Normal → 5s
+  </div>
+</div>
+
+<script>
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pad  =(s)=>(s+'                ').slice(0,16);
+
+// ── Historial ΔT/s ──
+const N=20;
+const hist=Array(N).fill(15);
+let hidx=0, lastT=Date.now();
+
+// ── Estado confirmación ──
+const CONFIRM_MS=10000;
+let confirmPrio=-1, confirmStart=0;
+
+// ── Estado MQTT ──
+let mqttLastSend=Date.now();
+let mqttInterval=5000;
+
+// ── Canvas delta ──
+const cvs=document.getElementById('cvs');
+const ctx2=cvs.getContext('2d');
+function drawCanvas(arr,delta){
+  const W=cvs.offsetWidth||400,H=48;
+  cvs.width=W;cvs.height=H;
+  ctx2.clearRect(0,0,W,H);
+  // umbral line
+  ctx2.strokeStyle='#e4e4e7';ctx2.lineWidth=1;ctx2.setLineDash([4,3]);
+  const yth=H-(2/8)*H;
+  ctx2.beginPath();ctx2.moveTo(0,yth);ctx2.lineTo(W,yth);ctx2.stroke();
+  ctx2.setLineDash([]);
+  const mn=Math.min(...arr)-0.5,mx=Math.max(...arr,mn+3)+0.5;
+  const pts=arr.map((v,i)=>({x:i/(N-1)*W,y:H-((v-mn)/(mx-mn))*(H-4)-2}));
+  ctx2.beginPath();
+  ctx2.moveTo(pts[0].x,H);
+  pts.forEach(p=>ctx2.lineTo(p.x,p.y));
+  ctx2.lineTo(pts[N-1].x,H);ctx2.closePath();
+  const g=ctx2.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,Math.abs(delta)>=2?'rgba(220,38,38,.2)':'rgba(37,99,235,.15)');
+  g.addColorStop(1,'rgba(37,99,235,.02)');
+  ctx2.fillStyle=g;ctx2.fill();
+  ctx2.beginPath();
+  ctx2.strokeStyle=Math.abs(delta)>=2?'#dc2626':'#2563eb';
+  ctx2.lineWidth=1.5;
+  pts.forEach((p,i)=>i?ctx2.lineTo(p.x,p.y):ctx2.moveTo(p.x,p.y));
+  ctx2.stroke();
+}
+
+function setFan(n,pct){
+  const fi=document.getElementById('fi'+n);
+  const fp=document.getElementById('fp'+n);
+  const fv=document.getElementById('fv'+n);
+  fv.textContent=pct+'%';
+  fi.className='fi';
+  fp.setAttribute('fill',pct===0?'#d4d4d8':pct<60?'#2563eb':'#1d4ed8');
+  fv.style.color=pct===0?'#a1a1aa':'#18181b';
+  if(pct>0&&pct<60)fi.classList.add('sl');
+  else if(pct>=60)fi.classList.add('sf');
+}
+
+function setLed(id,lblId,cls,on,off){
+  document.getElementById(id).className='led'+(cls?' '+cls:'');
+  document.getElementById(lblId).textContent=cls?on:off;
+}
+
+function setLcd(l1,l2){
+  document.getElementById('lcd1').textContent=pad(l1);
+  document.getElementById('lcd2').textContent=pad(l2);
+}
+
+function setAlert(type,msg){
+  const el=document.getElementById('alert');
+  el.className='alert'+(type?' show '+type:'');
+  if(msg)document.getElementById('alert-msg').textContent=msg;
+}
+
+function setPrio(label,n){
+  const b=document.getElementById('pbadge');
+  b.textContent=label;
+  const cs={0:'#dc2626',1:'#dc2626',2:'#ea580c',3:'#ea580c',4:'#ca8a04',5:'#ca8a04',6:'#2563eb',7:'#16a34a',8:'#71717a',9:'#71717a'};
+  const c=cs[n]||'#71717a';
+  b.style.color=c;b.style.borderColor=c+'44';b.style.background=c+'0e';
+}
+
+function setConfirm(pct,lbl){
+  document.getElementById('cbar').style.width=pct+'%';
+  document.getElementById('lbl-c').textContent=lbl;
+}
+
+function updateMqttBar(intervalMs){
+  const elapsed=Date.now()-mqttLastSend;
+  const pct=clamp(elapsed/intervalMs*100,0,100);
+  document.getElementById('mqtt-bar').style.width=pct+'%';
+  if(pct>=100){
+    mqttLastSend=Date.now();
+    // flash mqtt bar
+    const bar=document.getElementById('mqtt-bar');
+    bar.style.background='#16a34a';
+    setTimeout(()=>bar.style.background='#18181b',200);
+  }
+}
+
+function update(){
+  const temp =parseInt(document.getElementById('sl-temp').value);
+  const gas  =parseInt(document.getElementById('sl-gas').value);
+  const pres =parseInt(document.getElementById('sl-pres').value);
+  const llama=document.getElementById('ck-llama').checked;
+
+  // labels
+  document.getElementById('v-temp').textContent=temp+'°C';
+  document.getElementById('v-gas').textContent=gas+'%';
+  document.getElementById('v-pres').textContent=pres+'%';
+
+  // llama UI
+  document.getElementById('llama-icon').className='llama-icon'+(llama?' on':'');
+  const ll=document.getElementById('llama-lbl');
+  ll.textContent=llama?'DETECTADA':'sin llama';
+  ll.className='llama-lbl'+(llama?' on':'');
+
+  // ΔT/s
+  const now=Date.now();
+  const dt=(now-lastT)/1000; lastT=now;
+  hist[hidx%N]=temp; hidx++;
+  const ord=[]; for(let i=0;i<N;i++)ord.push(hist[(hidx+i)%N]);
+  const dT=(ord[N-1]-ord[0])/(N*Math.max(dt,0.05));
+  document.getElementById('v-delta').textContent=dT.toFixed(1)+' °C/s';
+  document.getElementById('v-delta').style.color=Math.abs(dT)>=2?'#dc2626':'#52525b';
+  drawCanvas(ord,dT);
+
+  // umbrales (% → raw simulado 0-1023)
+  const GAS_RAW=Math.round(gas/100*1023);
+  const PRES_RAW=Math.round(pres/100*1023);
+  const GAS_LEL_LOW=Math.round(10/100*1023);   // 10% LEL ≈ raw 102
+  const GAS_LEL_HIGH=Math.round(20/100*1023);  // 20% LEL ≈ raw 205
+  const PRES_ALTA=Math.round(68/100*1023);      // 68% ≈ raw 695
+
+  const gasAlerta  =GAS_RAW>=GAS_LEL_LOW;
+  const gasEmerg   =GAS_RAW>=GAS_LEL_HIGH;
+  const presAlta   =PRES_RAW>=PRES_ALTA;
+  const dtRapido   =Math.abs(dT)>=2.0;
+
+  // ── CALCULAR PRIORIDAD TARGET ──
+  let pt=9;
+  if(llama&&gasEmerg)                              pt=0;
+  else if(gasEmerg&&!llama)                        pt=1;
+  else if(llama&&temp>90)                          pt=2;
+  else if(llama&&(temp>=60||dtRapido))             pt=3;
+  else if(presAlta&&gasAlerta)                     pt=5;
+  else if(gasAlerta&&!gasEmerg)                    pt=4;
+  else if(llama&&temp<60&&!dtRapido)               pt=8;
+  else if(presAlta&&!gasAlerta)                    pt=6;
+  else if(temp>20)                                 pt=7;
+  else                                             pt=9;
+
+  // ── CONFIRMACIÓN ──
+  // Sin espera: P2 (llama + >90°C) y P3 con ΔT/s alto. Con espera: P3 por temperatura y P8.
+  let prio=pt;
+  let confirmPct=0, confirmLbl='—', confirmando=false;
+  const sinEspera=(pt===2)||(pt===3&&dtRapido);
+
+  if(pt===2||pt===3||pt===8){
+    if(pt!==confirmPrio){ confirmPrio=pt; confirmStart=now; }
+    const el=now-confirmStart;
+    if(sinEspera){
+      confirmPct=100; confirmLbl='INMEDIATO';
+    } else if(el>=CONFIRM_MS){
+      confirmPct=100; confirmLbl='CONFIRMADO';
+    } else {
+      confirmando=true;
+      confirmPct=Math.round(el/CONFIRM_MS*100);
+      confirmLbl=Math.round(el/1000)+'s / '+(CONFIRM_MS/1000)+'s';
+      prio=9; // los actuadores no actúan hasta confirmar
+    }
+  } else {
+    confirmPrio=-1;
+    confirmPct=0; confirmLbl='—';
+  }
+  setConfirm(confirmPct,confirmLbl);
+
+  // ── INTERVALO MQTT ── (usa la prioridad detectada, no la confirmada)
+  const prioEnvio=confirmando?pt:prio;
+  let mqttMs=5000,mqttLbl='Normal · 5s';
+  if(prioEnvio<=3)     { mqttMs=500;  mqttLbl='Emergencia · 0.5s'; }
+  else if(prioEnvio<=5){ mqttMs=1000; mqttLbl='Prealerta · 1s'; }
+  mqttInterval=mqttMs;
+  document.getElementById('mqtt-val').textContent=(mqttMs/1000).toFixed(1)+' s';
+  const mb=document.getElementById('mqtt-badge');
+  mb.textContent=mqttLbl;
+  const mc={500:'#dc2626',1000:'#ca8a04',5000:'#71717a'}[mqttMs]||'#71717a';
+  mb.style.color=mc;mb.style.borderColor=mc+'44';mb.style.background=mc+'0e';
+  updateMqttBar(mqttMs);
+
+  // ── ACTUADORES ──
+  let v1=0,v2=0,v3=0;
+  let vlv=false,asp=false,buz=null;
+  let alertT=null,alertM='',l1='',l2='';
+
+  const pwmTemp=temp>20?clamp(Math.round((temp-20)/(60-20)*(100-30)+30),30,100):20;
+
+  switch(prio){
+    case 0:
+      v1=0;v2=0;v3=0;vlv=true;asp=true;buz='y';
+      alertT='danger';alertM='P0 CRÍTICA — Gas+Llama. TODO apagado. EVACUAR INMEDIATAMENTE.';
+      l1='!!GAS + LLAMA!!';l2='EVACUACION YA!!';
+      break;
+    case 1:
+      v1=100;v2=100;v3=100;vlv=true;buz='y';
+      alertT='danger';alertM='P1 EMERGENCIA GAS ('+gas+'%) — 3 ventiladores al máximo. Válvula cerrada.';
+      l1='!!FUGA DE GAS!!';l2='G:'+gas+'% VLV:OFF';
+      break;
+    case 2:
+      v1=0;v2=0;v3=0;vlv=true;asp=true;buz='y';
+      alertT='danger';alertM='P2 INCENDIO SEVERO ('+temp+'°C) — Ventiladores apagados. Aspersores activos.';
+      l1='!!INCEND.SEV!! ';l2='T:'+temp+'C ASP:ON';
+      break;
+    case 3:
+      v1=0;v2=100;v3=0;vlv=true;asp=true;buz='ys';
+      alertT='warning';alertM='P3 INCENDIO MODERADO — Solo extracción. No alimentar llamas con inyección.';
+      l1='!!INCENDIO!!   ';l2='T:'+temp+'C V2:100%';
+      break;
+    case 4:
+      v1=clamp(pwmTemp+20,40,90);v2=clamp(pwmTemp+20,40,90);v3=0;buz='ys';
+      alertT='caution';alertM='P4 PREALERTA GAS ('+gas+'%) — Ventilación acelerada. Monitoreo intensivo.';
+      l1='GAS ALERTA     ';l2='G:'+gas+'% VENT+';
+      break;
+    case 5:
+      v1=0;v2=100;v3=100;buz='ys';
+      alertT='warning';alertM='P5 PRESIÓN+GAS — Presión concentra el gas. Extracción máxima.';
+      l1='PRES+GAS ALRT  ';l2='P:'+pres+'% G:'+gas+'%';
+      break;
+    case 6:
+      v1=Math.round(pwmTemp*0.65);v2=clamp(Math.round(pwmTemp*1.35),0,100);v3=0;
+      alertT='info';alertM='P6 PRESIÓN ALTA ('+pres+'%) — Diferencial silencioso activado.';
+      l1='Pres:'+pres+'% ALTA   ';l2='V1:'+v1+'% V2:'+v2+'%';
+      break;
+    case 7:
+      v1=pwmTemp;v2=pwmTemp;v3=0;
+      if(temp>50){alertT='caution';alertM='P7 TEMPERATURA ALTA ('+temp+'°C) — Ventilación proporcional.';}
+      l1='T:'+temp+'C G:'+gas+'%  ';l2='V1:'+v1+'% V2:'+v2+'%';
+      break;
+    case 8:
+      v1=Math.round(pwmTemp*0.7);v2=Math.round(pwmTemp*0.7);v3=0;
+      alertT='caution';alertM='P8 MONITOREO DE LLAMA — Confirmando 10s. Probable fogón normal.';
+      l1='Llama detectada';l2='T:'+temp+'C MONIT.';
+      break;
+    default:
+      if(temp>20){v1=pwmTemp;v2=pwmTemp;}
+      // Si estamos confirmando, mostrar eso en LCD
+      if(confirmPct>0&&confirmPct<100){
+        l1='VERIFICANDO... ';l2=confirmLbl;
+        alertT='caution';alertM='Verificando condición ('+(pt===2?'P2':pt===3?'P3':'P8')+') — '+confirmLbl;
+      } else {
+        l1='SISTEMA NORMAL ';l2='T:'+temp+'C P:'+pres+'%';
+      }
+      break;
+  }
+
+  setFan(1,v1);setFan(2,v2);setFan(3,v3);
+  setLed('led-v','lbl-v',vlv?'r':null,'CERRADA','abierta');
+  setLed('led-a','lbl-a',asp?'b':null,'ON','inactivo');
+  setLed('led-b','lbl-b',buz,buz?'activo':null,'silencio');
+  setAlert(alertT,alertM);
+  setLcd(l1,l2);
+
+  const pLabels=['P0 Crítica','P1 Gas','P2 Inc.Sev','P3 Inc.Mod','P4 PreGas','P5 Pres+Gas','P6 Presión','P7 Temp','P8 Monit.','Normal'];
+  setPrio(pLabels[prio]||'Normal',prio);
+}
+
+function onInput(){ update(); }
+
+// Loop automático — 500ms para MQTT bar + ΔT/s
+setInterval(update, 500);
+update();
+</script>
+</body>
+</html>
