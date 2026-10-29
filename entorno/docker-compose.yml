@@ -1,0 +1,70 @@
+# Entorno reproducible: Mosquitto + Django + suscriptor MQTT + (simulador) + web.
+# Se ejecuta desde ESTA carpeta (investigacion/entorno/). El contexto es la raíz del proyecto
+# (la carpeta que contiene servidor/, mqtt/, pagina-web/), montada como volumen: el código se edita en tu equipo.
+#
+#   cp .env.example .env
+#   docker compose up -d --build            # broker + servidor + suscriptor + web
+#   docker compose --profile sim up simulador   # (opcional) cocinas virtuales
+#
+# No sustituye las pruebas con el ESP32 real (ver PRUEBAS_FISICAS.md).
+x-backend: &backend
+  build:
+    context: ../..
+    dockerfile: investigacion/entorno/Dockerfile.backend
+  environment: &backend-env
+    SECRET_KEY: ${SECRET_KEY:-dev-solo-para-pruebas-locales}
+    DEBUG: "True"
+    ALLOWED_HOSTS: localhost,127.0.0.1,servidor
+    CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    DATABASE_ENGINE: django.db.backends.sqlite3
+    DATABASE_NAME: /data/db.sqlite3
+    ALARMA_CON_CONFIRMANDO: ${ALARMA_CON_CONFIRMANDO:-False}   # D10 = opción A (False)
+    MQTT_BROKER: mosquitto
+    SERVIDOR_DIR: /app/servidor
+  volumes:
+    - ../../servidor:/app/servidor
+    - ../../mqtt:/app/mqtt
+    - datos:/data
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  servidor:
+    <<: *backend
+    working_dir: /app/servidor
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    ports: ["8000:8000"]
+
+  suscriptor:
+    <<: *backend
+    working_dir: /app/mqtt
+    command: sh -c "sleep 5 && python mqtt_client.py"   # espera a que servidor haya migrado la BD
+    depends_on: [mosquitto, servidor]
+    restart: unless-stopped
+
+  simulador:
+    <<: *backend
+    profiles: ["sim"]
+    working_dir: /app/mqtt
+    command: python mqtt_simulator.py --cocinas 3 --intervalo 2
+    depends_on: [mosquitto]
+
+  web:
+    image: node:22-slim
+    working_dir: /app/pagina-web
+    environment:
+      VITE_PROXY_TARGET: http://servidor:8000
+    volumes:
+      - ../../pagina-web:/app/pagina-web
+      - node_modules_web:/app/pagina-web/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports: ["5173:5173"]
+    depends_on: [servidor]
+
+volumes:
+  datos:
+  node_modules_web:

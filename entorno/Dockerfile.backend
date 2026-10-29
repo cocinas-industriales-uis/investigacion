@@ -1,0 +1,6 @@
+FROM python:3.13-slim
+ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+WORKDIR /app
+COPY servidor/requirements.txt /tmp/req-servidor.txt
+COPY mqtt/requirements.txt /tmp/req-mqtt.txt
+RUN pip install -r /tmp/req-servidor.txt -r /tmp/req-mqtt.txt
